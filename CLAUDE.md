@@ -79,6 +79,20 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 - When making changes, keep commits granular — one feature or fix per commit with a clear message.
 - After any session where files were changed, do a final review pass to make sure no debug logging, commented-out code, or TODO placeholders were left behind.
 
+### Voice-to-Text Design Principles (apply to all new UI)
+
+- All text inputs are multi-line auto-growing textareas. Min 2 rows, max 6 before scroll. 16px+ font size to prevent iOS zoom-on-focus.
+- Do NOT suppress autocorrect or spellcheck — voice dictation relies on these.
+- Large touch targets: all action buttons at least 44x44px.
+- No reliance on precise formatting in user input. All system prompts instruct Claude to handle voice-dictated, unpunctuated, conversational input.
+- Button-driven navigation. All major actions are initiated by taps, not typed commands.
+- Placeholder text in inputs should read like example voice dictation to guide users.
+
+### Cost Guardrails (apply to all Claude API interactions)
+
+- After every Claude API response in chat or discovery flows, display a subtle line below the message: `~1,247 input tokens · ~384 output tokens`. Pull from the API response's `usage` object.
+- Before any batch API call where estimated input exceeds 30k tokens, show a confirmation dialog: "This will send approximately [N]k tokens to Claude. Continue?" Estimate with `JSON.stringify(payload).length / 4`.
+
 ---
 
 ## Pending Specs
@@ -186,6 +200,202 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 - The `popstate` listener must be set up carefully to not conflict with any existing navigation logic. Check what currently handles tab switching and card selection in `context.jsx` / `App.jsx` before wiring this in.
 - Naming conventions: follow existing patterns — `useXxx` for hooks, `handleXxx` for event handlers, component files are PascalCase.
 - Not in scope: auto-linking during API scanning, reverse link index ("what links to this card"), WYSIWYG link editing.
+
+---
+
+### Feature: Card Index Infrastructure
+
+**Goal:** Every card gets a `summary` field — a one-line description (10-15 words max) generated during the initial scan. This powers connection discovery and deduplication without sending full card content in every API call.
+
+**Behavior:**
+- During image scanning, the API prompt requests a `summary` field alongside the normal card data. One sentence, under 15 words, capturing what the card is and its key relationships.
+- A utility function `buildCardIndex(profileId)` queries all cards in a profile and returns a lightweight array of `{ id, name, category, summary }` objects.
+- The index is assembled on-demand (not cached) — Dexie queries are fast. For 200 cards, the serialized index is roughly 4-6k tokens.
+
+**Data Model — addition to card schema:**
+- `summary`: `string` — one-line description generated during scan
+
+**Migration for Existing Cards:**
+- Cards without a `summary` show a subtle indicator in list view (e.g., a small dot).
+- Optional bulk action "Generate Summaries" sends cards without summaries to Claude in batches of ~10-15, requesting only the summary field.
+- Low priority — new cards get summaries automatically. Old cards get them on re-scan or edit.
+
+**Decisions:**
+- Decision: On-demand index assembly, not a cached/precomputed index.
+  Rationale: Dexie queries are fast enough that caching adds complexity without meaningful performance gain at expected scale (hundreds of cards, not thousands).
+- Decision: Summary is generated in the same API call as the card scan, not a separate call.
+  Rationale: One extra field in the prompt costs negligible tokens and avoids a second API round-trip.
+
+**Edge Cases:**
+- Card with empty or missing summary: `buildCardIndex` still includes it with `summary: ""`. Downstream consumers (connection discovery, dedup) handle gracefully.
+- Bulk summary generation: if the API call fails mid-batch, save the summaries that succeeded and let the user retry the remainder.
+
+**Implementation Notes:**
+- Files to modify:
+  - `src/db.js` — add `summary` to the card schema in Dexie. Add `buildCardIndex(profileId)` utility function.
+  - `src/api.js` — append the summary instruction to the scan system prompt for all profiles: `'Also generate a "summary" field: a single sentence under 15 words capturing what this card is and its key relationships or category. This is used for indexing, not display.'`
+  - `src/components/Library.jsx` — add subtle "no summary" indicator for cards missing the field (optional, low priority).
+  - `src/components/Settings.jsx` — add "Generate Summaries" bulk action (optional, low priority).
+- New files: none.
+- The `buildCardIndex` function is a simple Dexie query + map. Place it in `db.js` alongside the other data access functions.
+- Not in scope: displaying summaries to the user in the main UI. Summaries are internal metadata for connection discovery and dedup.
+
+---
+
+### Feature: Multi-Region Selection Tool
+
+**Goal:** Replace the single-rectangle crop tool. Users draw one or more rectangles on a captured image to highlight regions of interest. The full page image (with overlays) or just the cropped regions are sent to Claude.
+
+**Behavior:**
+- User captures/selects a photo. The Select Area screen appears.
+- User draws rectangles by touch-dragging. Each rectangle persists as a semi-transparent gold overlay (~30% opacity) with corner brackets (L-shaped marks at each corner, ~15-20px per arm, full opacity gold). No full border — corner brackets avoid obscuring text along edges.
+- Each rectangle gets a small "✕" button at its top-right corner for removal.
+- The "Scan Selection" button label reflects count: "Scan 1 Region", "Scan 3 Regions", etc. Disabled when zero regions are drawn.
+- A "Full Page" toggle in the header switches between two modes:
+  - **Full Page ON (default):** The entire page image is sent with regions rendered as visible overlays. The prompt tells Claude the highlighted areas are the focus.
+  - **Full Page OFF:** Only the selected regions are sent. Single region = one cropped image. Multiple regions = separate images in the same API message (Claude supports multi-image).
+- Minimum rectangle size: 20x20px (smaller = accidental tap, ignored).
+- No maximum region count — practical limit is screen space. Typical use: 1-3 regions.
+
+**Data Model — component state:**
+```js
+regions: [
+  { id: string, x: number, y: number, width: number, height: number }
+]
+```
+
+**Decisions:**
+- Decision: Corner brackets instead of full border on region overlays.
+  Rationale: A full border line running along text edges obscures content. Corner brackets clearly mark the bounds without hiding anything.
+- Decision: Full Page ON sends the entire image with overlays baked in, not separate image + region coordinates.
+  Rationale: Claude's vision model sees the overlays directly — no coordinate interpretation needed. Simpler and more reliable.
+- Decision: Full Page OFF with multiple regions sends separate images, not a stitched composite.
+  Rationale: Claude handles multi-image messages natively. Separate images are cleaner than a stitched strip with potential alignment issues.
+
+**Edge Cases:**
+- Very small image: corner brackets may overlap. Scale bracket arm length proportionally if the region is under 60px in either dimension.
+- Overlapping regions: allowed. The user may want to highlight overlapping areas for emphasis. Overlays stack visually.
+- Zero regions when "Scan Selection" is tapped: button is disabled, so this shouldn't happen. Defensive check anyway.
+
+**Implementation Notes:**
+- Files to modify:
+  - `src/components/CropOverlay.jsx` — major refactor. Replace single-rectangle logic with multi-rectangle state. Canvas rendering loop: draw photo → draw each region overlay (semi-transparent fill + corner brackets) → draw ✕ buttons. Touch handling: `touchstart` begins new rect, `touchmove` updates dimensions, `touchend` commits to `regions` array. Hit-testing on ✕ buttons for deletion.
+  - `src/components/Scan.jsx` — update to pass `regions` array and `fullPageMode` boolean to the API call. Update button label to reflect region count.
+  - `src/api.js` — update image preparation logic: Full Page ON = render overlays onto offscreen canvas, export as single JPEG base64. Full Page OFF, single region = crop to bounds. Full Page OFF, multiple = crop each, send as multi-image `content` array. Add prompt prepends for each mode.
+- New files: none.
+- The existing `CropOverlay.jsx` is the single-rectangle tool — this replaces it entirely. Preserve the same component name and props interface where possible.
+- Canvas rendering must redraw on every state change (new rect added, rect deleted, drag in progress). Use `useEffect` with the regions array as a dependency.
+- Not in scope: drag-handle resizing of existing rectangles (acknowledged as a nice-to-have, deferred). Rectangles are draw-once; delete and redraw to adjust.
+
+---
+
+### Feature: Scan-Time Custom Prompt Field
+
+**Goal:** A collapsible text input on the scan screen where the user can add per-scan instructions via typing or voice dictation. This text is appended to the profile's prompt for that specific API call only — not saved to the profile.
+
+**Behavior:**
+- Located below the image preview / region selection area, above the "Scan N Regions" button.
+- Collapsed by default, showing a tappable row: "＋ Add instructions".
+- On tap, expands to reveal a multi-line auto-growing `<textarea>` (min 2 rows, max 6 before scroll). Placeholder text: `e.g. 'This is from the 2024 PHB, focus on mechanical effects'`.
+- A collapse button (chevron or ✕) to re-hide if opened accidentally.
+- The text is cleared after a successful scan. On error, it's preserved for retry.
+
+**Data Model — component state:**
+```js
+const [scanInstructions, setScanInstructions] = useState('');
+const [showInstructions, setShowInstructions] = useState(false);
+```
+
+**Decisions:**
+- Decision: Per-scan instructions are ephemeral, not saved to the profile.
+  Rationale: Profile-level instructions cover the general case. Per-scan text is for one-off guidance ("this is from a specific edition", "extract the sidebar too"). Saving it would clutter the profile.
+- Decision: Clear on success, preserve on error.
+  Rationale: If the scan fails, the user wants to retry with the same instructions without retyping/redictating.
+
+**Edge Cases:**
+- Very long voice dictation: auto-growing textarea handles it. No character limit. The text gets appended to the prompt, so very long instructions increase token usage but that's the user's prerogative.
+- Instructions contain formatting or special characters: passed through as-is. The API handles arbitrary text.
+
+**Implementation Notes:**
+- Files to modify:
+  - `src/components/Scan.jsx` — add the collapsible instructions UI below the image preview area. Pass `scanInstructions` to the API call function. Clear state on success.
+  - `src/api.js` — when `scanInstructions` is non-empty, append to the assembled prompt: `\n\nAdditional instructions for this scan: ${scanInstructions.trim()}`
+- New files: none.
+- Follow voice-to-text design principles: 16px+ font, no autocorrect suppression, large touch targets.
+- The textarea should use `onInput` for auto-growing (set `style.height = 'auto'` then `style.height = scrollHeight + 'px'`).
+- Not in scope: saving frequently-used instructions as presets. That could come later but is not part of this feature.
+
+---
+
+### Feature: Chat Panel Component
+
+**Goal:** A reusable slide-up overlay panel that provides a conversational interface with Claude. Used by both Profile Creation (section 5) and Profile Evolution (section 6) flows.
+
+**Behavior:**
+- Slides up from the bottom, covering ~90% of viewport height. A small strip of the underlying view is visible at top, plus a drag handle or close button. The panel is modal — underlying view is not interactive while open.
+- Layout (top to bottom):
+  1. **Header bar:** Title ("Create Profile" or "Update Profile: [name]"), close button (✕).
+  2. **Scrollable message thread:** Alternating user/assistant messages. User messages right-aligned, assistant messages left-aligned. Standard chat bubble styling matching the grimoire dark theme.
+  3. **Input area:** Multi-line auto-growing textarea (same specs as scan instructions), "Attach" button (opens camera/file picker for images), "Send" button.
+- Each send builds the full Claude API message array from local history and sends it. Claude's response is appended to the thread.
+- The panel includes `web_search` as a tool in all API calls so Claude can fetch URLs the user shares.
+- After each API response, display token usage (per cost guardrails in standing instructions).
+
+**Data Model — component state:**
+```js
+const [messages, setMessages] = useState([]);
+// { role: 'user'|'assistant', content: string|object, rawText?: string, timestamp: Date }
+
+const [inputText, setInputText] = useState('');
+const [attachedImages, setAttachedImages] = useState([]); // base64 strings
+const [isLoading, setIsLoading] = useState(false);
+```
+
+**Props:**
+```js
+{
+  mode: 'create' | 'update',
+  existingProfile: object | null,  // populated in update mode
+  onClose: () => void,
+  onSaveProfile: (profileData) => void
+}
+```
+
+**API Call Structure:**
+- Build the `messages` array from local history. User messages include text + any attached images. Assistant messages use `rawText` (the original API response text).
+- System prompt depends on `mode` — create mode or update mode (see sections 5 and 6 for the full prompts, which will be added when those specs are implemented).
+- Include `tools: [{ type: "web_search_20250305", name: "web_search" }]` in all calls.
+
+**Response Parsing:**
+- After receiving a response, scan the assistant's text for a ` ```json ` code fence.
+- If found: parse the JSON, check the `type` field (`schema_proposal` or `schema_diff`), store raw text as `msg.rawText` and parsed object as `msg.content`. Render an interactive review UI instead of a plain text bubble (the review UI is defined in sections 5 and 6).
+- If no JSON fence found: render as a normal text message.
+
+**Decisions:**
+- Decision: Full message history sent with every API call, not summarized.
+  Rationale: Profile creation/evolution conversations are short (typically 3-8 exchanges). Summarization would lose nuance. History fits comfortably in context.
+- Decision: Chat panel is a generic reusable component. Mode-specific behavior (system prompts, review UIs) is injected via props/callbacks.
+  Rationale: Avoids duplicating the chat infrastructure for create vs update flows. The panel handles message threading, API calls, image attachment. The caller handles what happens with the results.
+- Decision: Include `web_search` tool in all chat panel API calls.
+  Rationale: Users will share wiki URLs and expect Claude to read them. Web search enables this without the app needing to fetch and parse pages itself.
+
+**Edge Cases:**
+- API error during send: show error message in the thread (styled distinctly from normal messages). Preserve the user's input text so they can retry.
+- Very long conversation: message thread scrolls. Auto-scroll to bottom on new messages.
+- Image attachment: show a thumbnail preview above the input area before sending. Allow removal (✕ on thumbnail). Multiple images allowed.
+- User closes panel mid-conversation: conversation state is lost. This is intentional — these are short task-oriented conversations, not persistent chats.
+
+**Implementation Notes:**
+- New files:
+  - `src/components/ChatPanel.jsx` — the full panel component. Handles slide-up animation, message rendering, input area, image attachment, API calls, response parsing.
+- Files to modify:
+  - `src/api.js` — add a `sendChatMessage(messages, systemPrompt, tools)` function that handles the chat-specific API call pattern (full history, tool inclusion, response parsing). Distinct from the existing `parseCardImage` function.
+  - `src/App.css` — add styles for the slide-up panel, chat bubbles, message thread, input area. Follow grimoire dark theme (dark backgrounds, gold accents, Cinzel headings, Nunito Sans body text).
+- The chat panel does NOT need to know about profile schemas, proposals, or diffs — it renders whatever `msg.content` contains. When sections 5-6 are implemented, they'll provide render functions for the schema proposal and diff review UIs that the panel calls when it detects structured JSON in a response.
+- For now, the panel renders all assistant messages as plain text. The structured review UIs (schema_proposal, schema_diff) are stubbed — when a JSON fence is detected, parse and store it but render a placeholder like "Schema proposal received — review UI coming in a future update." This lets the panel be fully functional for testing before sections 5-6 are built.
+- Slide-up animation: use CSS `transform: translateY(100%)` → `translateY(0)` with a transition. The panel is a fixed-position overlay.
+- Follow voice-to-text design principles for the input area.
+- Not in scope: persistent conversation history, conversation export, typing indicators.
 
 ---
 
