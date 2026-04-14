@@ -13,6 +13,8 @@ export default function Scan() {
   const [imgData, setImgData] = useState(null); // current image being cropped: { dataUrl, base64, mediaType }
   const [queue, setQueue] = useState([]); // accumulated images: [{ base64, mediaType }]
   const [fullPageMode, setFullPageMode] = useState(false);
+  const [scanInstructions, setScanInstructions] = useState('');
+  const [showInstructions, setShowInstructions] = useState(false);
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
 
@@ -55,7 +57,10 @@ export default function Scan() {
   async function processQueue() {
     setStatus('processing');
     try {
-      const result = await parseCardImage(queue, state.apiKey, profile, { fullPageWithRegions: fullPageMode && queue.length === 1 });
+      const result = await parseCardImage(queue, state.apiKey, profile, {
+        fullPageWithRegions: fullPageMode && queue.length === 1,
+        scanInstructions,
+      });
       setPreview({
         ...result,
         id: genId(),
@@ -65,6 +70,7 @@ export default function Scan() {
         sections: result.sections || [],
       });
       setStatus('preview');
+      setScanInstructions(''); // cleared on success; preserved on error for retry
     } catch (err) {
       setError(err.message || "Couldn't parse image.");
       setStatus('error');
@@ -156,6 +162,43 @@ export default function Scan() {
           <button className="btn" style={{ width: '100%', marginTop: 10 }} onClick={() => galleryRef.current?.click()}>
             Choose from Library
           </button>
+
+          {/* Collapsible per-scan instructions */}
+          {!showInstructions ? (
+            <button
+              style={{
+                display: 'block', width: '100%', marginTop: 10,
+                background: 'none', border: '1px solid var(--border)',
+                borderRadius: 8, padding: '10px 14px',
+                color: 'var(--text-mid)', fontSize: 15,
+                textAlign: 'left', cursor: 'pointer', minHeight: 44,
+              }}
+              onClick={() => setShowInstructions(true)}
+            >
+              ＋ Add instructions
+            </button>
+          ) : (
+            <div style={{ marginTop: 10, border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Additional Instructions</span>
+                <button
+                  style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 18, cursor: 'pointer', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={() => setShowInstructions(false)}
+                >✕</button>
+              </div>
+              <textarea
+                value={scanInstructions}
+                rows={2}
+                placeholder="e.g. 'This is from the 2024 PHB, focus on mechanical effects'"
+                style={{ width: '100%', fontSize: 16, resize: 'none', overflowY: 'auto', maxHeight: 168, boxSizing: 'border-box' }}
+                onChange={(e) => {
+                  setScanInstructions(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 168) + 'px';
+                }}
+              />
+            </div>
+          )}
 
           {queue.length > 0 && (
             <button className="btn" style={{ width: '100%', marginTop: 10, background: 'var(--accent)', color: '#1a1714', fontWeight: 700 }} onClick={processQueue}>

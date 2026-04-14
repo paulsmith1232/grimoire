@@ -203,44 +203,6 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 
 ---
 
-### Feature: Scan-Time Custom Prompt Field
-
-**Goal:** A collapsible text input on the scan screen where the user can add per-scan instructions via typing or voice dictation. This text is appended to the profile's prompt for that specific API call only — not saved to the profile.
-
-**Behavior:**
-- Located below the image preview / region selection area, above the "Scan N Regions" button.
-- Collapsed by default, showing a tappable row: "＋ Add instructions".
-- On tap, expands to reveal a multi-line auto-growing `<textarea>` (min 2 rows, max 6 before scroll). Placeholder text: `e.g. 'This is from the 2024 PHB, focus on mechanical effects'`.
-- A collapse button (chevron or ✕) to re-hide if opened accidentally.
-- The text is cleared after a successful scan. On error, it's preserved for retry.
-
-**Data Model — component state:**
-```js
-const [scanInstructions, setScanInstructions] = useState('');
-const [showInstructions, setShowInstructions] = useState(false);
-```
-
-**Decisions:**
-- Decision: Per-scan instructions are ephemeral, not saved to the profile.
-  Rationale: Profile-level instructions cover the general case. Per-scan text is for one-off guidance ("this is from a specific edition", "extract the sidebar too"). Saving it would clutter the profile.
-- Decision: Clear on success, preserve on error.
-  Rationale: If the scan fails, the user wants to retry with the same instructions without retyping/redictating.
-
-**Edge Cases:**
-- Very long voice dictation: auto-growing textarea handles it. No character limit. The text gets appended to the prompt, so very long instructions increase token usage but that's the user's prerogative.
-- Instructions contain formatting or special characters: passed through as-is. The API handles arbitrary text.
-
-**Implementation Notes:**
-- Files to modify:
-  - `src/components/Scan.jsx` — add the collapsible instructions UI below the image preview area. Pass `scanInstructions` to the API call function. Clear state on success.
-  - `src/api.js` — when `scanInstructions` is non-empty, append to the assembled prompt: `\n\nAdditional instructions for this scan: ${scanInstructions.trim()}`
-- New files: none.
-- Follow voice-to-text design principles: 16px+ font, no autocorrect suppression, large touch targets.
-- The textarea should use `onInput` for auto-growing (set `style.height = 'auto'` then `style.height = scrollHeight + 'px'`).
-- Not in scope: saving frequently-used instructions as presets. That could come later but is not part of this feature.
-
----
-
 ### Feature: Chat Panel Component
 
 **Goal:** A reusable slide-up overlay panel that provides a conversational interface with Claude. Used by both Profile Creation (section 5) and Profile Evolution (section 6) flows.
@@ -314,6 +276,9 @@ const [isLoading, setIsLoading] = useState(false);
 ---
 
 ## Completed Specs
+
+### Feature: Scan-Time Custom Prompt Field — Completed 2026-04-13
+Implemented as specced. Collapsible "＋ Add instructions" row in the idle/error scan state; expands to an auto-growing textarea (16px, min 2 rows, max 6 / 168px). `scanInstructions` cleared on successful API call, preserved on error. `api.js` appends the instructions to the system prompt via `opts.scanInstructions`.
 
 ### Feature: Multi-Region Selection Tool — Completed 2026-04-13
 Implemented as specced. `CropOverlay.jsx` fully rewritten: multi-rect state, semi-transparent gold fill + corner-bracket overlays, ✕ hit-tested delete buttons, Full Page / Crop Only toggle (default Full Page ON), "Scan N Regions" button disabled at zero. `Scan.jsx` updated to new `onConfirm(images, fullPage)` interface, tracks `fullPageMode`, passes it to `parseCardImage`. `api.js` adds `opts.fullPageWithRegions` parameter to select the appropriate user prompt. Deviation: props changed from `{ onCrop, onSendFull }` to `{ onConfirm }` — image processing moved into CropOverlay, consistent with spec intent.

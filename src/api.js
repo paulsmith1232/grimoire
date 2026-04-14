@@ -63,6 +63,11 @@ export async function parseCardImage(images, apiKey, profile, opts = {}) {
     prompt = 'Extract the content from this image into a structured card.';
   }
 
+  let systemPrompt = buildPrompt(profile);
+  if (opts.scanInstructions) {
+    systemPrompt += `\n\nAdditional instructions for this scan: ${opts.scanInstructions.trim()}`;
+  }
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -74,7 +79,7 @@ export async function parseCardImage(images, apiKey, profile, opts = {}) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
-      system: buildPrompt(profile),
+      system: systemPrompt,
       messages: [
         {
           role: 'user',
