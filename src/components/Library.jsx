@@ -127,7 +127,10 @@ export default function Library() {
                 onClick={() => navigateToCard(card.id, true)}
               >
                 <div className="card-preview-header">
-                  <h3>{card.name}</h3>
+                  <h3>
+                    {card.name}
+                    {!card.summary && <span title="No summary — re-scan to generate" style={{ marginLeft: 5, fontSize: 8, color: 'var(--text-dim, #555)', verticalAlign: 'middle' }}>●</span>}
+                  </h3>
                   {profile && (
                     <span className="type-badge sm" style={{ background: color + '22', color, border: `1px solid ${color}55` }}>
                       {profile.icon} {profile.name}

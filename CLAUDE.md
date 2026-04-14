@@ -203,45 +203,6 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 
 ---
 
-### Feature: Card Index Infrastructure
-
-**Goal:** Every card gets a `summary` field — a one-line description (10-15 words max) generated during the initial scan. This powers connection discovery and deduplication without sending full card content in every API call.
-
-**Behavior:**
-- During image scanning, the API prompt requests a `summary` field alongside the normal card data. One sentence, under 15 words, capturing what the card is and its key relationships.
-- A utility function `buildCardIndex(profileId)` queries all cards in a profile and returns a lightweight array of `{ id, name, category, summary }` objects.
-- The index is assembled on-demand (not cached) — Dexie queries are fast. For 200 cards, the serialized index is roughly 4-6k tokens.
-
-**Data Model — addition to card schema:**
-- `summary`: `string` — one-line description generated during scan
-
-**Migration for Existing Cards:**
-- Cards without a `summary` show a subtle indicator in list view (e.g., a small dot).
-- Optional bulk action "Generate Summaries" sends cards without summaries to Claude in batches of ~10-15, requesting only the summary field.
-- Low priority — new cards get summaries automatically. Old cards get them on re-scan or edit.
-
-**Decisions:**
-- Decision: On-demand index assembly, not a cached/precomputed index.
-  Rationale: Dexie queries are fast enough that caching adds complexity without meaningful performance gain at expected scale (hundreds of cards, not thousands).
-- Decision: Summary is generated in the same API call as the card scan, not a separate call.
-  Rationale: One extra field in the prompt costs negligible tokens and avoids a second API round-trip.
-
-**Edge Cases:**
-- Card with empty or missing summary: `buildCardIndex` still includes it with `summary: ""`. Downstream consumers (connection discovery, dedup) handle gracefully.
-- Bulk summary generation: if the API call fails mid-batch, save the summaries that succeeded and let the user retry the remainder.
-
-**Implementation Notes:**
-- Files to modify:
-  - `src/db.js` — add `summary` to the card schema in Dexie. Add `buildCardIndex(profileId)` utility function.
-  - `src/api.js` — append the summary instruction to the scan system prompt for all profiles: `'Also generate a "summary" field: a single sentence under 15 words capturing what this card is and its key relationships or category. This is used for indexing, not display.'`
-  - `src/components/Library.jsx` — add subtle "no summary" indicator for cards missing the field (optional, low priority).
-  - `src/components/Settings.jsx` — add "Generate Summaries" bulk action (optional, low priority).
-- New files: none.
-- The `buildCardIndex` function is a simple Dexie query + map. Place it in `db.js` alongside the other data access functions.
-- Not in scope: displaying summaries to the user in the main UI. Summaries are internal metadata for connection discovery and dedup.
-
----
-
 ### Feature: Multi-Region Selection Tool
 
 **Goal:** Replace the single-rectangle crop tool. Users draw one or more rectangles on a captured image to highlight regions of interest. The full page image (with overlays) or just the cropped regions are sent to Claude.
@@ -401,4 +362,8 @@ const [isLoading, setIsLoading] = useState(false);
 
 ## Completed Specs
 
-_No completed specs yet. Claude Code moves specs here after implementation._
+### Feature: Card Index Infrastructure — Completed 2026-04-13
+Implemented as specced.
+- `buildCardIndex(profileId)` added to `db.js` — queries cards by profileId (or all cards if null), returns `{ id, name, category, summary }` array.
+- `buildPrompt()` in `api.js` updated: added `"summary"` field to the assembled JSON schema and appended the summary instruction as a rule. For custom-prompt mode, the instruction is appended after the user's custom text.
+- `Library.jsx` shows a subtle `●` dot (with tooltip) next to card names missing a summary, 1-col list view only.

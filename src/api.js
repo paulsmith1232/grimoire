@@ -1,7 +1,9 @@
+const SUMMARY_INSTRUCTION = `Also generate a "summary" field: a single sentence under 15 words capturing what this card is and its key relationships or category. This is used for indexing, not display.`;
+
 // ── Dynamic prompt builder ──
 export function buildPrompt(profile) {
   if (profile.useCustomPrompt) {
-    return profile.customPrompt || '';
+    return (profile.customPrompt || '') + `\n\n${SUMMARY_INSTRUCTION}`;
   }
 
   const sectionDefs = (profile.sections || [])
@@ -13,6 +15,7 @@ export function buildPrompt(profile) {
 Schema:
 {
   "name": "string",
+  "summary": "string",
   "source": "string|null",
   "sections": [
     {
@@ -35,6 +38,7 @@ Rules:
 - For "key-value" type: put structured data in "keyValues" as string pairs, leave content null.
 - Preserve body text faithfully.
 - If multiple entries visible, extract only the most prominent one.
+- ${SUMMARY_INSTRUCTION}
 - Return ONLY the JSON object.`;
 }
 

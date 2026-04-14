@@ -232,4 +232,19 @@ export function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+// ── Card index for connection discovery ──
+// Returns lightweight { id, name, category, summary } for all cards in a profile.
+// Pass null/undefined to get index across all profiles.
+export async function buildCardIndex(profileId) {
+  const cards = profileId
+    ? await db.cards.where('profileId').equals(profileId).toArray()
+    : await db.cards.toArray();
+  return cards.map(({ id, name, category, summary }) => ({
+    id,
+    name: name || '',
+    category: category || '',
+    summary: summary || '',
+  }));
+}
+
 export default db;
