@@ -18,13 +18,15 @@ export const DND_PROFILE = {
   icon: '🎲',
   color: '#4a7ec2',
   builtIn: true,
-  sections: [
-    { name: 'Stats', type: 'key-value', priority: 1 },
-    { name: 'Description', type: 'text', priority: 2 },
-    { name: 'At Higher Levels', type: 'text', priority: 3 },
+  fields: [
+    { key: 'stats', label: 'Stats' },
+    { key: 'description', label: 'Description' },
+    { key: 'at_higher_levels', label: 'At Higher Levels' },
   ],
-  scanInstructions:
+  additionalInstructions:
     'Extract D&D 5e content from this page. For spells and cantrips, extract these as key-value Stats: Level, School, Casting Time, Range, Components, Duration, Concentration (Yes/No), Classes. For class features, racial traits, or item abilities, extract relevant properties as Stats (e.g. Prerequisite, Usage, Recharge). Preserve the full description text faithfully. If there is an "At Higher Levels" section, extract it separately.',
+  useCustomPrompt: false,
+  customPrompt: '',
 };
 
 export const PROFILE_COLORS = [
@@ -53,15 +55,16 @@ export async function migrateFromLocalStorage() {
       if (!card.sections) migrateCardToSections(card);
     });
 
-    // Ensure D&D profile exists
+    // Ensure D&D profile exists and migrate profile model
     if (!profiles.find((p) => p.id === 'dnd-5e')) {
       profiles.unshift({ ...DND_PROFILE });
     }
+    const migratedProfiles = profiles.map(migrateProfileFields);
 
     // Write to IndexedDB
     await db.transaction('rw', db.cards, db.profiles, db.tags, db.settings, async () => {
       await db.cards.bulkPut(cards);
-      await db.profiles.bulkPut(profiles);
+      await db.profiles.bulkPut(migratedProfiles);
       await db.tags.bulkPut(tags.map((t) => (typeof t === 'string' ? { name: t } : t)));
       if (apiKey) await db.settings.put({ key: 'apiKey', value: apiKey });
     });
@@ -112,6 +115,23 @@ function migrateCardToSections(card) {
   }
 }
 
+// ── Profile migration: sections/scanInstructions → fields/additionalInstructions ──
+export function migrateProfileFields(profile) {
+  if (profile.fields) return profile; // already on new model
+  const { sections, scanInstructions, ...rest } = profile;
+  const fields = (sections || []).map((s) => ({
+    key: (s.name || '').toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
+    label: s.name || '',
+  }));
+  return {
+    ...rest,
+    fields,
+    additionalInstructions: scanInstructions || '',
+    useCustomPrompt: rest.useCustomPrompt || false,
+    customPrompt: rest.customPrompt || '',
+  };
+}
+
 // ── CRUD operations ──
 export async function getAllCards() {
   return db.cards.toArray();
@@ -130,7 +150,22 @@ export async function deleteCard(id) {
 }
 
 export async function getAllProfiles() {
-  const profiles = await db.profiles.toArray();
+  let profiles = await db.profiles.toArray();
+
+  // Migrate any profiles still on the old sections/scanInstructions model
+  const toSave = [];
+  profiles = profiles.map((p) => {
+    if (!p.fields) {
+      const m = migrateProfileFields(p);
+      toSave.push(m);
+      return m;
+    }
+    return p;
+  });
+  if (toSave.length > 0) {
+    await db.profiles.bulkPut(toSave);
+  }
+
   // Ensure D&D profile
   if (!profiles.find((p) => p.id === 'dnd-5e')) {
     await db.profiles.put({ ...DND_PROFILE });
@@ -215,13 +250,14 @@ export async function importFromJSON(jsonStr) {
   if (!profiles.find((p) => p.id === 'dnd-5e')) {
     profiles.unshift({ ...DND_PROFILE });
   }
+  const migratedProfiles = profiles.map(migrateProfileFields);
 
   await db.transaction('rw', db.cards, db.profiles, db.tags, async () => {
     await db.cards.clear();
     await db.profiles.clear();
     await db.tags.clear();
     await db.cards.bulkPut(cards);
-    await db.profiles.bulkPut(profiles);
+    await db.profiles.bulkPut(migratedProfiles);
     await db.tags.bulkPut(tags.map((t) => (typeof t === 'string' ? { name: t } : t)));
   });
 

@@ -97,52 +97,6 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 
 ## Pending Specs
 
-### Feature: Profile Editing & Prompt Builder
-
-**Goal:** Profiles become editable scan configurations. Each profile defines the card field schema and the API prompt used during image scanning.
-
-**Behavior:**
-- Profile edit screen has three sections:
-  1. **Field Configurator** — define which fields appear on cards produced by this profile (e.g., Name, Effect, Duration, Source). Fields are ordered and can be added/removed/reordered.
-  2. **Additional Instructions** — freeform text area for extra instructions appended to the assembled prompt (e.g., "prioritize information related to cats").
-  3. **Assembled Prompt Preview** — read-only preview showing the full prompt that will be sent to the API.
-- A toggle ("Use custom prompt instead") replaces the entire assembled prompt with a single freeform text area. When enabled, ONLY the user-authored prompt is sent — the assembled preamble and field schema are ignored. The assembled sections remain configured so the user can toggle back without losing work.
-
-**Prompt Assembly Order:**
-1. System instructions (output format, JSON structure expectations)
-2. Field schema derived from the field configurator
-3. User's additional instructions
-
-**Data Model — additions to profile object:**
-- `fields`: `Array<{ key: string, label: string }>` — defines the card schema
-- `additionalInstructions`: `string` — user's extra instructions for the prompt
-- `useCustomPrompt`: `boolean` — toggle for full override mode
-- `customPrompt`: `string` — the full override prompt text
-
-**Decisions:**
-- Decision: Use an assembled prompt with optional full override, not a single freeform-only prompt.
-  Rationale: Assembled approach prevents users from accidentally breaking the output format while still allowing full control via the toggle for power users.
-- Decision: When custom prompt is toggled on, the assembled sections stay configured in the background.
-  Rationale: Users can toggle back without losing their field definitions and instructions.
-- Decision: Profile `fields` array replaces the existing `sections` array concept from v4.
-  Rationale: Simpler model — each field is a key/label pair rather than a typed section. The section type distinction (text vs key-value) added complexity without clear value in v5's generalist model.
-
-**Edge Cases:**
-- Empty fields array: prompt assembly still works, just omits the field schema section. Cards scanned with no fields defined get whatever structure the API returns.
-- Migration: existing profiles with `sections` and `scanInstructions` should map to the new model. `sections` → `fields` (extract name/key pairs), `scanInstructions` → `additionalInstructions`. `useCustomPrompt` defaults to `false`, `customPrompt` defaults to empty string.
-
-**Implementation Notes:**
-- Files to modify:
-  - `src/db.js` — add new fields to profile schema, write migration logic from `sections`/`scanInstructions` to new fields
-  - `src/components/ProfileEditor.jsx` — rebuild the edit UI with field configurator, additional instructions textarea, prompt preview, and custom prompt toggle
-  - `src/api.js` — update the prompt assembly function to use the new profile data model (`fields` + `additionalInstructions` + custom prompt logic)
-- Existing `ProfileEditor.jsx` already has section editing and scan instructions — this is a refactor of that component, not a new file.
-- The prompt preview is read-only and updates live as the user edits fields or instructions. Render it in a `<pre>` or styled `<div>` with a muted background.
-- The field configurator needs drag-to-reorder. The existing profile editor already has a drag handle pattern — reuse that approach.
-- Not in scope: changing how cards are rendered based on field types (text vs key-value distinction). That's a separate concern.
-
----
-
 ### Feature: Inline Card Linking
 
 **Goal:** Any text within any card field can link to another card, Wikipedia-style. Tapping a link navigates to that card with full back-navigation support.
@@ -204,6 +158,15 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 ---
 
 ## Completed Specs
+
+### Feature: Profile Editing & Prompt Builder — Completed 2026-04-14
+Implemented as specced.
+- `db.js`: `DND_PROFILE` updated to new model (`fields` + `additionalInstructions`). `migrateProfileFields()` exported helper converts old `sections`/`scanInstructions` to new shape. `getAllProfiles()` auto-migrates and persists any un-migrated profiles on load. `migrateFromLocalStorage()` and `importFromJSON()` also run profile migration.
+- `ProfileEditor.jsx`: Sections editor replaced with fields editor (label input per field, ▲/▼ reorder, × delete, + Add Field). `scanInstructions` renamed to `additionalInstructions` throughout. Custom prompt toggle and assembled prompt preview unchanged.
+- `api.js`: `buildPrompt()` now uses `profile.fields` (label list) and `profile.additionalInstructions`. Legacy `scanInstructions` fallback retained for safety. Rules section updated to guide Claude on text vs key-value inference (since fields no longer carry explicit types).
+- `Profiles.jsx`: New profile template updated to use `fields`/`additionalInstructions`. Profile card chip list updated to render from `fields`.
+- `Scan.jsx`: Profile summary line updated from `profile.sections` to `profile.fields`.
+- Deviations: (1) Drag-to-reorder replaced with ▲/▼ buttons — reused the existing pattern from the old sections editor rather than adding drag handling. (2) `key` is auto-derived from `label` (lowercased, underscored) instead of being a user-editable field — keeps the UI simpler for a label-only input. (3) Fields carry no explicit type — `buildPrompt()` instructs Claude to infer text vs key-value from context, since the type distinction was removed from the data model.
 
 ### Feature: Chat Panel Component — Completed 2026-04-13
 Implemented as specced. New `src/components/ChatPanel.jsx`: slide-up overlay (90vh, `translateY` animation), scrollable message thread with user/assistant/error bubbles, auto-growing textarea (16px, 2-6 rows), image attach with thumbnail preview, full history sent per call, JSON fence detection with structured-message stub, token usage display, 30k-token cost guardrail. `sendChatMessage` added to `api.js`. CSS added to `App.css`. Placeholder system prompts in place — will be replaced when sections 5-6 are implemented. Note: `onSaveProfile` prop is wired through but not yet called; that hookup comes with sections 5-6.

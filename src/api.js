@@ -6,9 +6,13 @@ export function buildPrompt(profile) {
     return (profile.customPrompt || '') + `\n\n${SUMMARY_INSTRUCTION}`;
   }
 
-  const sectionDefs = (profile.sections || [])
-    .map((s) => `"${s.name}" (type: ${s.type}, priority: ${s.priority})`)
-    .join(', ');
+  const fieldLabels = (profile.fields || []).map((f) => `"${f.label}"`).join(', ');
+  const fieldSection = fieldLabels
+    ? `This profile expects these fields (in order): ${fieldLabels}`
+    : '';
+
+  // Support both new (additionalInstructions) and legacy (scanInstructions) field names
+  const additionalInstructions = profile.additionalInstructions || profile.scanInstructions || '';
 
   return `You are a reference card parser. Extract content from the image and return ONLY valid JSON with no markdown, no backticks, no preamble.
 
@@ -28,14 +32,14 @@ Schema:
   ]
 }
 
-This profile expects these sections: ${sectionDefs}
+${fieldSection}
 
-${profile.scanInstructions || ''}
+${additionalInstructions}
 
 Rules:
-- Return sections in the order listed above. Only include sections that have actual content.
-- For "text" type: put content in "content", leave keyValues null.
-- For "key-value" type: put structured data in "keyValues" as string pairs, leave content null.
+- Return sections matching the expected fields, in the order listed. Only include sections that have actual content.
+- For structured data (stats, properties, numbers): use type "key-value" with keyValues as string pairs.
+- For prose text (descriptions, abilities, lore): use type "text" with content string.
 - Preserve body text faithfully.
 - If multiple entries visible, extract only the most prominent one.
 - ${SUMMARY_INSTRUCTION}

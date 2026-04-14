@@ -3,6 +3,10 @@ import { useApp } from '../context';
 import { PROFILE_COLORS, DND_PROFILE, genId } from '../db';
 import { buildPrompt } from '../api';
 
+function labelToKey(label) {
+  return label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+}
+
 export default function ProfileEditor() {
   const { state, dispatch, saveProfile, addProfile, removeProfile } = useApp();
   const profile = state.profiles.find((p) => p.id === state.editingProfileId);
@@ -38,6 +42,8 @@ export default function ProfileEditor() {
     const np = await addProfile(dup);
     dispatch({ type: 'EDIT_PROFILE', id: np.id });
   }
+
+  const fields = draft.fields || [];
 
   return (
     <div className="section fade-in">
@@ -78,26 +84,24 @@ export default function ProfileEditor() {
         </div>
       </div>
 
-      {/* Sections */}
+      {/* Field Configurator */}
       <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', margin: '16px 0 8px' }}>
-        Sections (priority order)
+        Fields (scan order)
       </label>
 
-      {draft.sections.map((sec, i) => (
+      {fields.map((field, i) => (
         <div key={i} className="section-edit-row">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {i > 0 && (
               <button style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 10, padding: 0 }}
                 onClick={() => update((d) => {
-                  [d.sections[i - 1], d.sections[i]] = [d.sections[i], d.sections[i - 1]];
-                  d.sections.forEach((s, idx) => { s.priority = idx + 1; });
+                  [d.fields[i - 1], d.fields[i]] = [d.fields[i], d.fields[i - 1]];
                 })}>▲</button>
             )}
-            {i < draft.sections.length - 1 && (
+            {i < fields.length - 1 && (
               <button style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 10, padding: 0 }}
                 onClick={() => update((d) => {
-                  [d.sections[i], d.sections[i + 1]] = [d.sections[i + 1], d.sections[i]];
-                  d.sections.forEach((s, idx) => { s.priority = idx + 1; });
+                  [d.fields[i], d.fields[i + 1]] = [d.fields[i + 1], d.fields[i]];
                 })}>▼</button>
             )}
           </div>
@@ -105,53 +109,36 @@ export default function ProfileEditor() {
           <div className="section-edit-info">
             <input
               type="text"
-              value={sec.name}
-              placeholder="Section name..."
-              style={{ fontSize: 13, padding: '6px 8px', marginBottom: 4, width: '100%' }}
-              onChange={(e) => update((d) => { d.sections[i].name = e.target.value; })}
+              value={field.label}
+              placeholder="Field name, e.g. Stats, Description..."
+              style={{ fontSize: 13, padding: '6px 8px', width: '100%' }}
+              onChange={(e) => update((d) => {
+                d.fields[i].label = e.target.value;
+                d.fields[i].key = labelToKey(e.target.value);
+              })}
             />
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button className="btn btn-sm" style={{
-                padding: '2px 8px', fontSize: 10,
-                background: sec.type === 'text' ? 'var(--accent-glow)' : 'var(--surface)',
-                border: `1px solid ${sec.type === 'text' ? 'var(--accent)' : 'var(--border)'}`,
-                color: sec.type === 'text' ? 'var(--accent)' : 'var(--text-dim)',
-              }} onClick={() => update((d) => { d.sections[i].type = 'text'; })}>📝 Text</button>
-              <button className="btn btn-sm" style={{
-                padding: '2px 8px', fontSize: 10,
-                background: sec.type === 'key-value' ? 'var(--accent-glow)' : 'var(--surface)',
-                border: `1px solid ${sec.type === 'key-value' ? 'var(--accent)' : 'var(--border)'}`,
-                color: sec.type === 'key-value' ? 'var(--accent)' : 'var(--text-dim)',
-              }} onClick={() => update((d) => { d.sections[i].type = 'key-value'; })}>📊 KV</button>
-              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
-                P{i + 1}{i < 2 ? ' · expanded' : ' · collapsed'}
-              </span>
-            </div>
           </div>
 
           <button
-            style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 16, cursor: 'pointer' }}
-            onClick={() => update((d) => {
-              d.sections.splice(i, 1);
-              d.sections.forEach((s, idx) => { s.priority = idx + 1; });
-            })}
+            style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 16, cursor: 'pointer', minWidth: 44, minHeight: 44 }}
+            onClick={() => update((d) => { d.fields.splice(i, 1); })}
           >×</button>
         </div>
       ))}
 
       <button className="btn btn-secondary btn-sm" style={{ marginTop: 6 }}
         onClick={() => update((d) => {
-          d.sections.push({ name: '', type: 'text', priority: d.sections.length + 1 });
-        })}>+ Add Section</button>
+          d.fields.push({ key: '', label: '' });
+        })}>+ Add Field</button>
 
       {/* Additional Instructions */}
       <div className="edit-field" style={{ marginTop: 16 }}>
         <label>Additional Instructions</label>
         <textarea
           rows={4}
-          value={draft.scanInstructions || ''}
+          value={draft.additionalInstructions || ''}
           placeholder='Extra instructions appended to the assembled prompt. E.g.: "Prioritize practical gameplay tips over raw stat numbers."'
-          onChange={(e) => update((d) => { d.scanInstructions = e.target.value; })}
+          onChange={(e) => update((d) => { d.additionalInstructions = e.target.value; })}
         />
       </div>
 
@@ -166,7 +153,7 @@ export default function ProfileEditor() {
           Use custom prompt instead
         </label>
         <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-          Replaces the assembled prompt entirely. The sections above are preserved so you can toggle back.
+          Replaces the assembled prompt entirely. The fields above are preserved so you can toggle back.
         </p>
       </div>
 

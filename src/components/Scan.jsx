@@ -117,7 +117,7 @@ export default function Scan() {
 
       {profile && (
         <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16, lineHeight: 1.4 }}>
-          Sections: {profile.sections.map((s) => s.name).join(', ')}
+          Fields: {(profile.fields || []).map((f) => f.label).join(', ')}
         </div>
       )}
 

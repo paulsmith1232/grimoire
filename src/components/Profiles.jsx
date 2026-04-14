@@ -12,8 +12,10 @@ export default function Profiles() {
       icon: '📋',
       color: PROFILE_COLORS[state.profiles.length % PROFILE_COLORS.length],
       builtIn: false,
-      sections: [{ name: 'Description', type: 'text', priority: 1 }],
-      scanInstructions: '',
+      fields: [{ key: 'description', label: 'Description' }],
+      additionalInstructions: '',
+      useCustomPrompt: false,
+      customPrompt: '',
     });
     dispatch({ type: 'EDIT_PROFILE', id: np.id });
   }
@@ -51,8 +53,8 @@ export default function Profiles() {
                 </span>
               </div>
               <div className="profile-section-list">
-                {p.sections.map((s, i) => (
-                  <span key={i} className="profile-section-chip">{i + 1}. {s.name}</span>
+                {(p.fields || []).map((f, i) => (
+                  <span key={i} className="profile-section-chip">{i + 1}. {f.label}</span>
                 ))}
               </div>
             </div>
