@@ -203,53 +203,6 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 
 ---
 
-### Feature: Multi-Region Selection Tool
-
-**Goal:** Replace the single-rectangle crop tool. Users draw one or more rectangles on a captured image to highlight regions of interest. The full page image (with overlays) or just the cropped regions are sent to Claude.
-
-**Behavior:**
-- User captures/selects a photo. The Select Area screen appears.
-- User draws rectangles by touch-dragging. Each rectangle persists as a semi-transparent gold overlay (~30% opacity) with corner brackets (L-shaped marks at each corner, ~15-20px per arm, full opacity gold). No full border — corner brackets avoid obscuring text along edges.
-- Each rectangle gets a small "✕" button at its top-right corner for removal.
-- The "Scan Selection" button label reflects count: "Scan 1 Region", "Scan 3 Regions", etc. Disabled when zero regions are drawn.
-- A "Full Page" toggle in the header switches between two modes:
-  - **Full Page ON (default):** The entire page image is sent with regions rendered as visible overlays. The prompt tells Claude the highlighted areas are the focus.
-  - **Full Page OFF:** Only the selected regions are sent. Single region = one cropped image. Multiple regions = separate images in the same API message (Claude supports multi-image).
-- Minimum rectangle size: 20x20px (smaller = accidental tap, ignored).
-- No maximum region count — practical limit is screen space. Typical use: 1-3 regions.
-
-**Data Model — component state:**
-```js
-regions: [
-  { id: string, x: number, y: number, width: number, height: number }
-]
-```
-
-**Decisions:**
-- Decision: Corner brackets instead of full border on region overlays.
-  Rationale: A full border line running along text edges obscures content. Corner brackets clearly mark the bounds without hiding anything.
-- Decision: Full Page ON sends the entire image with overlays baked in, not separate image + region coordinates.
-  Rationale: Claude's vision model sees the overlays directly — no coordinate interpretation needed. Simpler and more reliable.
-- Decision: Full Page OFF with multiple regions sends separate images, not a stitched composite.
-  Rationale: Claude handles multi-image messages natively. Separate images are cleaner than a stitched strip with potential alignment issues.
-
-**Edge Cases:**
-- Very small image: corner brackets may overlap. Scale bracket arm length proportionally if the region is under 60px in either dimension.
-- Overlapping regions: allowed. The user may want to highlight overlapping areas for emphasis. Overlays stack visually.
-- Zero regions when "Scan Selection" is tapped: button is disabled, so this shouldn't happen. Defensive check anyway.
-
-**Implementation Notes:**
-- Files to modify:
-  - `src/components/CropOverlay.jsx` — major refactor. Replace single-rectangle logic with multi-rectangle state. Canvas rendering loop: draw photo → draw each region overlay (semi-transparent fill + corner brackets) → draw ✕ buttons. Touch handling: `touchstart` begins new rect, `touchmove` updates dimensions, `touchend` commits to `regions` array. Hit-testing on ✕ buttons for deletion.
-  - `src/components/Scan.jsx` — update to pass `regions` array and `fullPageMode` boolean to the API call. Update button label to reflect region count.
-  - `src/api.js` — update image preparation logic: Full Page ON = render overlays onto offscreen canvas, export as single JPEG base64. Full Page OFF, single region = crop to bounds. Full Page OFF, multiple = crop each, send as multi-image `content` array. Add prompt prepends for each mode.
-- New files: none.
-- The existing `CropOverlay.jsx` is the single-rectangle tool — this replaces it entirely. Preserve the same component name and props interface where possible.
-- Canvas rendering must redraw on every state change (new rect added, rect deleted, drag in progress). Use `useEffect` with the regions array as a dependency.
-- Not in scope: drag-handle resizing of existing rectangles (acknowledged as a nice-to-have, deferred). Rectangles are draw-once; delete and redraw to adjust.
-
----
-
 ### Feature: Scan-Time Custom Prompt Field
 
 **Goal:** A collapsible text input on the scan screen where the user can add per-scan instructions via typing or voice dictation. This text is appended to the profile's prompt for that specific API call only — not saved to the profile.
@@ -361,6 +314,9 @@ const [isLoading, setIsLoading] = useState(false);
 ---
 
 ## Completed Specs
+
+### Feature: Multi-Region Selection Tool — Completed 2026-04-13
+Implemented as specced. `CropOverlay.jsx` fully rewritten: multi-rect state, semi-transparent gold fill + corner-bracket overlays, ✕ hit-tested delete buttons, Full Page / Crop Only toggle (default Full Page ON), "Scan N Regions" button disabled at zero. `Scan.jsx` updated to new `onConfirm(images, fullPage)` interface, tracks `fullPageMode`, passes it to `parseCardImage`. `api.js` adds `opts.fullPageWithRegions` parameter to select the appropriate user prompt. Deviation: props changed from `{ onCrop, onSendFull }` to `{ onConfirm }` — image processing moved into CropOverlay, consistent with spec intent.
 
 ### Feature: Card Index Infrastructure — Completed 2026-04-13
 Implemented as specced.

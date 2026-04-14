@@ -44,7 +44,8 @@ Rules:
 
 // ── Parse card from one or more images ──
 // images: [{ base64, mediaType }, ...]
-export async function parseCardImage(images, apiKey, profile) {
+// opts.fullPageWithRegions: true when Full Page mode — image has gold overlay highlights
+export async function parseCardImage(images, apiKey, profile, opts = {}) {
   if (!apiKey) throw new Error('No API key configured');
   if (!profile) throw new Error('No scan profile selected');
 
@@ -53,9 +54,14 @@ export async function parseCardImage(images, apiKey, profile) {
     source: { type: 'base64', media_type: mediaType, data: base64 },
   }));
 
-  const prompt = images.length > 1
-    ? 'Extract the content from these images into a single structured card, combining information across all images.'
-    : 'Extract the content from this image into a structured card.';
+  let prompt;
+  if (opts.fullPageWithRegions) {
+    prompt = 'This image shows a full page with highlighted regions (gold corner-bracket overlays). Focus your extraction on the highlighted areas when building the card.';
+  } else if (images.length > 1) {
+    prompt = 'These images are cropped regions from a page. Extract the content from all regions into a single structured card.';
+  } else {
+    prompt = 'Extract the content from this image into a structured card.';
+  }
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

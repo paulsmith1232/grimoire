@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context';
-import { parseCardImage, cropImage } from '../api';
+import { parseCardImage } from '../api';
 import { genId } from '../db';
 import CropOverlay from './CropOverlay';
 import CardEditor from './CardEditor';
@@ -12,6 +12,7 @@ export default function Scan() {
   const [preview, setPreview] = useState(null);
   const [imgData, setImgData] = useState(null); // current image being cropped: { dataUrl, base64, mediaType }
   const [queue, setQueue] = useState([]); // accumulated images: [{ base64, mediaType }]
+  const [fullPageMode, setFullPageMode] = useState(false);
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
 
@@ -44,24 +45,17 @@ export default function Scan() {
     });
   }
 
-  function handleCrop(rect, dW, dH, imgEl) {
-    const base64 = cropImage(imgEl, rect, dW, dH);
-    setQueue((q) => [...q, { base64, mediaType: 'image/jpeg' }]);
-    // Delay unmounting the overlay so the touch sequence finishes while it still
-    // covers the screen — prevents the lift event from reaching the nav bar below.
-    setTimeout(() => { setImgData(null); setStatus('idle'); }, 150);
-  }
-
-  function handleFullPage() {
-    if (!imgData) return;
-    setQueue((q) => [...q, { base64: imgData.base64, mediaType: imgData.mediaType }]);
+  function handleCropConfirm(images, fullPage) {
+    setFullPageMode(fullPage);
+    setQueue((q) => [...q, ...images]);
+    // Delay unmounting so the touch sequence finishes while the overlay still covers the screen.
     setTimeout(() => { setImgData(null); setStatus('idle'); }, 150);
   }
 
   async function processQueue() {
     setStatus('processing');
     try {
-      const result = await parseCardImage(queue, state.apiKey, profile);
+      const result = await parseCardImage(queue, state.apiKey, profile, { fullPageWithRegions: fullPageMode && queue.length === 1 });
       setPreview({
         ...result,
         id: genId(),
@@ -83,6 +77,7 @@ export default function Scan() {
     setPreview(null);
     setImgData(null);
     setQueue([]);
+    setFullPageMode(false);
   }
 
   // Crop overlay
@@ -90,8 +85,7 @@ export default function Scan() {
     return (
       <CropOverlay
         imgDataUrl={imgData.dataUrl}
-        onCrop={handleCrop}
-        onSendFull={handleFullPage}
+        onConfirm={handleCropConfirm}
         onCancel={() => { setImgData(null); setStatus('idle'); }}
       />
     );
