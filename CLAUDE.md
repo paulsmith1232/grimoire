@@ -203,79 +203,10 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 
 ---
 
-### Feature: Chat Panel Component
-
-**Goal:** A reusable slide-up overlay panel that provides a conversational interface with Claude. Used by both Profile Creation (section 5) and Profile Evolution (section 6) flows.
-
-**Behavior:**
-- Slides up from the bottom, covering ~90% of viewport height. A small strip of the underlying view is visible at top, plus a drag handle or close button. The panel is modal — underlying view is not interactive while open.
-- Layout (top to bottom):
-  1. **Header bar:** Title ("Create Profile" or "Update Profile: [name]"), close button (✕).
-  2. **Scrollable message thread:** Alternating user/assistant messages. User messages right-aligned, assistant messages left-aligned. Standard chat bubble styling matching the grimoire dark theme.
-  3. **Input area:** Multi-line auto-growing textarea (same specs as scan instructions), "Attach" button (opens camera/file picker for images), "Send" button.
-- Each send builds the full Claude API message array from local history and sends it. Claude's response is appended to the thread.
-- The panel includes `web_search` as a tool in all API calls so Claude can fetch URLs the user shares.
-- After each API response, display token usage (per cost guardrails in standing instructions).
-
-**Data Model — component state:**
-```js
-const [messages, setMessages] = useState([]);
-// { role: 'user'|'assistant', content: string|object, rawText?: string, timestamp: Date }
-
-const [inputText, setInputText] = useState('');
-const [attachedImages, setAttachedImages] = useState([]); // base64 strings
-const [isLoading, setIsLoading] = useState(false);
-```
-
-**Props:**
-```js
-{
-  mode: 'create' | 'update',
-  existingProfile: object | null,  // populated in update mode
-  onClose: () => void,
-  onSaveProfile: (profileData) => void
-}
-```
-
-**API Call Structure:**
-- Build the `messages` array from local history. User messages include text + any attached images. Assistant messages use `rawText` (the original API response text).
-- System prompt depends on `mode` — create mode or update mode (see sections 5 and 6 for the full prompts, which will be added when those specs are implemented).
-- Include `tools: [{ type: "web_search_20250305", name: "web_search" }]` in all calls.
-
-**Response Parsing:**
-- After receiving a response, scan the assistant's text for a ` ```json ` code fence.
-- If found: parse the JSON, check the `type` field (`schema_proposal` or `schema_diff`), store raw text as `msg.rawText` and parsed object as `msg.content`. Render an interactive review UI instead of a plain text bubble (the review UI is defined in sections 5 and 6).
-- If no JSON fence found: render as a normal text message.
-
-**Decisions:**
-- Decision: Full message history sent with every API call, not summarized.
-  Rationale: Profile creation/evolution conversations are short (typically 3-8 exchanges). Summarization would lose nuance. History fits comfortably in context.
-- Decision: Chat panel is a generic reusable component. Mode-specific behavior (system prompts, review UIs) is injected via props/callbacks.
-  Rationale: Avoids duplicating the chat infrastructure for create vs update flows. The panel handles message threading, API calls, image attachment. The caller handles what happens with the results.
-- Decision: Include `web_search` tool in all chat panel API calls.
-  Rationale: Users will share wiki URLs and expect Claude to read them. Web search enables this without the app needing to fetch and parse pages itself.
-
-**Edge Cases:**
-- API error during send: show error message in the thread (styled distinctly from normal messages). Preserve the user's input text so they can retry.
-- Very long conversation: message thread scrolls. Auto-scroll to bottom on new messages.
-- Image attachment: show a thumbnail preview above the input area before sending. Allow removal (✕ on thumbnail). Multiple images allowed.
-- User closes panel mid-conversation: conversation state is lost. This is intentional — these are short task-oriented conversations, not persistent chats.
-
-**Implementation Notes:**
-- New files:
-  - `src/components/ChatPanel.jsx` — the full panel component. Handles slide-up animation, message rendering, input area, image attachment, API calls, response parsing.
-- Files to modify:
-  - `src/api.js` — add a `sendChatMessage(messages, systemPrompt, tools)` function that handles the chat-specific API call pattern (full history, tool inclusion, response parsing). Distinct from the existing `parseCardImage` function.
-  - `src/App.css` — add styles for the slide-up panel, chat bubbles, message thread, input area. Follow grimoire dark theme (dark backgrounds, gold accents, Cinzel headings, Nunito Sans body text).
-- The chat panel does NOT need to know about profile schemas, proposals, or diffs — it renders whatever `msg.content` contains. When sections 5-6 are implemented, they'll provide render functions for the schema proposal and diff review UIs that the panel calls when it detects structured JSON in a response.
-- For now, the panel renders all assistant messages as plain text. The structured review UIs (schema_proposal, schema_diff) are stubbed — when a JSON fence is detected, parse and store it but render a placeholder like "Schema proposal received — review UI coming in a future update." This lets the panel be fully functional for testing before sections 5-6 are built.
-- Slide-up animation: use CSS `transform: translateY(100%)` → `translateY(0)` with a transition. The panel is a fixed-position overlay.
-- Follow voice-to-text design principles for the input area.
-- Not in scope: persistent conversation history, conversation export, typing indicators.
-
----
-
 ## Completed Specs
+
+### Feature: Chat Panel Component — Completed 2026-04-13
+Implemented as specced. New `src/components/ChatPanel.jsx`: slide-up overlay (90vh, `translateY` animation), scrollable message thread with user/assistant/error bubbles, auto-growing textarea (16px, 2-6 rows), image attach with thumbnail preview, full history sent per call, JSON fence detection with structured-message stub, token usage display, 30k-token cost guardrail. `sendChatMessage` added to `api.js`. CSS added to `App.css`. Placeholder system prompts in place — will be replaced when sections 5-6 are implemented. Note: `onSaveProfile` prop is wired through but not yet called; that hookup comes with sections 5-6.
 
 ### Feature: Scan-Time Custom Prompt Field — Completed 2026-04-13
 Implemented as specced. Collapsible "＋ Add instructions" row in the idle/error scan state; expands to an auto-growing textarea (16px, min 2 rows, max 6 / 168px). `scanInstructions` cleared on successful API call, preserved on error. `api.js` appends the instructions to the system prompt via `opts.scanInstructions`.

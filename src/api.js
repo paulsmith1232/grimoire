@@ -99,6 +99,44 @@ export async function parseCardImage(images, apiKey, profile, opts = {}) {
   return JSON.parse(text.replace(/```json|```/g, '').trim());
 }
 
+// ── Chat message send ──
+// messages: Anthropic-format array (role/content). tools: optional array of tool defs.
+export async function sendChatMessage(messages, systemPrompt, apiKey, tools = []) {
+  if (!apiKey) throw new Error('No API key configured');
+
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4000,
+    system: systemPrompt,
+    messages,
+  };
+  if (tools.length > 0) body.tools = tools;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e?.error?.message || 'API error: ' + res.status);
+  }
+
+  const data = await res.json();
+  const text = (data.content || [])
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
+
+  return { text: text || '(No text response)', usage: data.usage };
+}
+
 // ── Crop image helper ──
 export function cropImage(imgEl, rect, dispW, dispH) {
   const c = document.createElement('canvas');
