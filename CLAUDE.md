@@ -64,15 +64,19 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 - If anything in a spec is genuinely ambiguous or impossible given the current codebase, stop and ask — do not silently deviate or invent an alternative approach.
 
 ### After Completing a Spec
-- Move the completed spec from **Pending Specs** to **Completed Specs**.
-- Add the completion date and a short summary of what was implemented.
-- If you deviated from the spec in any way, note what changed and why.
+- Move the completed spec from **Pending Specs** to **Ready for Testing**.
+- Add the implementation date and a summary of what was implemented, including any deviations.
+- Include a **Test checklist** — a short bullet list of the key behaviors to manually verify. Write these as user-facing actions, not implementation details. Think "what would I tap/see/check on the phone?" Each item should be a concrete action with an expected result.
 - Example format:
   ```
-  ### Feature: [Name] — Completed 2026-04-13
-  Implemented as specced. Minor deviation: used `Map` instead of
-  plain object for the history stack for cleaner cleanup on unmount.
+  ### Feature: [Name] — Implemented 2026-04-14
+  [Implementation summary and deviation notes]
+  **Test checklist:**
+  - [ ] [Action] → [expected result]
+  - [ ] [Action] → [expected result]
+  **Deploy after testing:** `npm run deploy`
   ```
+- Do NOT move specs directly to Completed. Only the developer moves specs from Ready for Testing to Completed after manual verification.
 
 ### General
 - Do not modify or remove pending specs you are not actively implementing.
@@ -157,9 +161,11 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 
 ---
 
-## Completed Specs
+## Ready for Testing
 
-### Feature: Profile Editing & Prompt Builder — Completed 2026-04-14
+*(Specs that have been implemented but not yet manually verified and deployed.)*
+
+### Feature: Profile Editing & Prompt Builder — Implemented 2026-04-14
 Implemented as specced.
 - `db.js`: `DND_PROFILE` updated to new model (`fields` + `additionalInstructions`). `migrateProfileFields()` exported helper converts old `sections`/`scanInstructions` to new shape. `getAllProfiles()` auto-migrates and persists any un-migrated profiles on load. `migrateFromLocalStorage()` and `importFromJSON()` also run profile migration.
 - `ProfileEditor.jsx`: Sections editor replaced with fields editor (label input per field, ▲/▼ reorder, × delete, + Add Field). `scanInstructions` renamed to `additionalInstructions` throughout. Custom prompt toggle and assembled prompt preview unchanged.
@@ -167,6 +173,20 @@ Implemented as specced.
 - `Profiles.jsx`: New profile template updated to use `fields`/`additionalInstructions`. Profile card chip list updated to render from `fields`.
 - `Scan.jsx`: Profile summary line updated from `profile.sections` to `profile.fields`.
 - Deviations: (1) Drag-to-reorder replaced with ▲/▼ buttons — reused the existing pattern from the old sections editor rather than adding drag handling. (2) `key` is auto-derived from `label` (lowercased, underscored) instead of being a user-editable field — keeps the UI simpler for a label-only input. (3) Fields carry no explicit type — `buildPrompt()` instructs Claude to infer text vs key-value from context, since the type distinction was removed from the data model.
+
+**Test checklist:**
+- [ ] Open the D&D 5e profile → fields show (Name, Level, etc.) not old sections
+- [ ] Add a new field, reorder with ▲/▼, delete one → changes save
+- [ ] Type in Additional Instructions → assembled prompt preview updates live
+- [ ] Toggle "Use custom prompt" on → freeform textarea appears, assembled preview hidden
+- [ ] Toggle it back off → fields and instructions still intact
+- [ ] Scan a card using the edited profile → card comes back with expected fields
+
+**Deploy after testing:** `npm run deploy`
+
+---
+
+## Completed Specs
 
 ### Feature: Chat Panel Component — Completed 2026-04-13
 Implemented as specced. New `src/components/ChatPanel.jsx`: slide-up overlay (90vh, `translateY` animation), scrollable message thread with user/assistant/error bubbles, auto-growing textarea (16px, 2-6 rows), image attach with thumbnail preview, full history sent per call, JSON fence detection with structured-message stub, token usage display, 30k-token cost guardrail. `sendChatMessage` added to `api.js`. CSS added to `App.css`. Placeholder system prompts in place — will be replaced when sections 5-6 are implemented. Note: `onSaveProfile` prop is wired through but not yet called; that hookup comes with sections 5-6.
