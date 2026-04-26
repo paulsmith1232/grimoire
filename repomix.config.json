@@ -1,0 +1,23 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml",
+    "showLineNumbers": true,
+    "removeComments": false
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "package-lock.json",
+      "dist/**",
+      ".claude/**",
+      "public/*.png",
+      "public/*.jpg",
+      "public/*.svg",
+      "public/*.ico",
+      "repomix-output.xml"
+    ]
+  }
+}

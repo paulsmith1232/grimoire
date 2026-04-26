@@ -1,0 +1,4199 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+The content has been processed where line numbers have been added.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: package-lock.json, dist/**, .claude/**, public/*.png, public/*.jpg, public/*.svg, public/*.ico, repomix-output.xml
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Line numbers have been added to the beginning of each line
+- Files are sorted by Git change count (files with more changes are at the bottom)
+- Git logs (30 commits) are included to show development patterns
+</notes>
+
+</file_summary>
+
+<directory_structure>
+src/
+  components/
+    CardDetail.jsx
+    CardEditor.jsx
+    ChatPanel.jsx
+    CropOverlay.jsx
+    Library.jsx
+    LinkedText.jsx
+    ProfileEditor.jsx
+    Profiles.jsx
+    QA.jsx
+    QAChecklist.jsx
+    Scan.jsx
+    Settings.jsx
+    Tags.jsx
+  api.js
+  App.css
+  App.jsx
+  context.jsx
+  db.js
+  linking.js
+  main.jsx
+  qa-checklists.json
+.gitignore
+CLAUDE.md
+index.html
+package.json
+repomix.config.json
+vite.config.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="repomix.config.json">
+ 1: {
+ 2:   "$schema": "https://repomix.com/schemas/latest/schema.json",
+ 3:   "output": {
+ 4:     "filePath": "repomix-output.xml",
+ 5:     "style": "xml",
+ 6:     "showLineNumbers": true,
+ 7:     "removeComments": false
+ 8:   },
+ 9:   "ignore": {
+10:     "useGitignore": true,
+11:     "useDefaultPatterns": true,
+12:     "customPatterns": [
+13:       "package-lock.json",
+14:       "dist/**",
+15:       ".claude/**",
+16:       "public/*.png",
+17:       "public/*.jpg",
+18:       "public/*.svg",
+19:       "public/*.ico",
+20:       "repomix-output.xml"
+21:     ]
+22:   }
+23: }
+</file>
+
+<file path="src/components/CardDetail.jsx">
+  1: import React, { useState, useMemo } from 'react';
+  2: import { useApp } from '../context';
+  3: import LinkedText from './LinkedText';
+  4: import CardEditor from './CardEditor';
+  5: import { computeReverseLinks } from '../linking';
+  6: 
+  7: export default function CardDetail() {
+  8:   const { state, dispatch, saveCard, removeCard, navigateToCard } = useApp();
+  9:   const card = state.cards.find((c) => c.id === state.selectedCardId);
+ 10:   const [tagOpen, setTagOpen] = useState(false);
+ 11: 
+ 12:   const reverseLinks = useMemo(() => {
+ 13:     if (!card) return [];
+ 14:     return computeReverseLinks(card.id, state.cards);
+ 15:   }, [card, state.cards]);
+ 16: 
+ 17:   if (!card) {
+ 18:     dispatch({ type: 'DESELECT_CARD' });
+ 19:     return null;
+ 20:   }
+ 21: 
+ 22:   const profile = state.profiles.find((p) => p.id === card.profileId);
+ 23:   const color = profile?.color || '#7d8590';
+ 24:   const sections = [...(card.sections || [])].sort((a, b) => (a.priority || 99) - (b.priority || 99));
+ 25: 
+ 26:   // Editing mode
+ 27:   if (state.editingCardId === card.id) {
+ 28:     return (
+ 29:       <div className="section fade-in">
+ 30:         <button className="back-btn" onClick={() => dispatch({ type: 'STOP_EDITING' })}>← Cancel</button>
+ 31:         <CardEditor
+ 32:           card={card}
+ 33:           onSave={async (draft) => {
+ 34:             await saveCard({ ...card, ...draft });
+ 35:             dispatch({ type: 'STOP_EDITING' });
+ 36:           }}
+ 37:           onCancel={() => dispatch({ type: 'STOP_EDITING' })}
+ 38:         />
+ 39:       </div>
+ 40:     );
+ 41:   }
+ 42: 
+ 43:   async function toggleTag(name) {
+ 44:     const tags = card.tags || [];
+ 45:     const updated = tags.includes(name) ? tags.filter((t) => t !== name) : [...tags, name];
+ 46:     await saveCard({ ...card, tags: updated });
+ 47:   }
+ 48: 
+ 49:   return (
+ 50:     <div className="section fade-in">
+ 51:       <button className="back-btn" onClick={() => dispatch({ type: 'DESELECT_CARD' })}>← Back</button>
+ 52: 
+ 53:       <div className="detail-card" style={{ borderTop: `3px solid ${color}` }}>
+ 54:         {/* Header */}
+ 55:         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
+ 56:           <h2>{card.name}</h2>
+ 57:           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+ 58:             <button className="btn btn-secondary btn-sm" onClick={() => dispatch({ type: 'EDIT_CARD', id: card.id })}>✎ Edit</button>
+ 59:             {profile && (
+ 60:               <span className="type-badge" style={{ background: color + '22', color, border: `1px solid ${color}55` }}>
+ 61:                 {profile.icon} {profile.name}
+ 62:               </span>
+ 63:             )}
+ 64:           </div>
+ 65:         </div>
+ 66: 
+ 67:         {/* Sections */}
+ 68:         {sections.map((sec, i) => {
+ 69:           const hasContent = sec.content || (sec.keyValues && Object.keys(sec.keyValues).length);
+ 70:           if (!hasContent) return null;
+ 71:           return sec.priority <= 2
+ 72:             ? <ExpandedSection key={i} sec={sec} />
+ 73:             : <CollapsibleSection key={i} sec={sec} />;
+ 74:         })}
+ 75: 
+ 76:         {/* Source */}
+ 77:         {card.source && (
+ 78:           <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-dim)' }}>Source: {card.source}</div>
+ 79:         )}
+ 80: 
+ 81:         {/* Reverse links */}
+ 82:         {reverseLinks.length > 0 && (
+ 83:           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+ 84:             <div style={{ fontSize: 12, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: 8 }}>
+ 85:               Linked from — opens in library
+ 86:             </div>
+ 87:             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+ 88:               {reverseLinks.map((ref, i) => (
+ 89:                 <button
+ 90:                   key={i}
+ 91:                   className="card-preview"
+ 92:                   style={{ padding: '8px 12px' }}
+ 93:                   onClick={() => navigateToCard(ref.cardId, true)}
+ 94:                 >
+ 95:                   <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{ref.cardName}</span>
+ 96:                   <span style={{ color: 'var(--text-dim)', fontSize: 11, marginLeft: 6 }}>in {ref.sectionName}</span>
+ 97:                 </button>
+ 98:               ))}
+ 99:             </div>
+100:           </div>
+101:         )}
+102: 
+103:         {/* Tags */}
+104:         <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+105:           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+106:             <span style={{ fontSize: 12, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>Tags</span>
+107:             <button className="btn btn-primary btn-sm" onClick={() => setTagOpen(!tagOpen)}>
+108:               {tagOpen ? 'Done' : '+ Tag'}
+109:             </button>
+110:           </div>
+111:           {tagOpen && state.tags.length > 0 && (
+112:             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+113:               {state.tags.map((name) => {
+114:                 const active = (card.tags || []).includes(name);
+115:                 return (
+116:                   <button
+117:                     key={name}
+118:                     className="btn btn-sm"
+119:                     style={{
+120:                       background: active ? 'var(--accent-glow)' : 'var(--surface)',
+121:                       border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+122:                       color: active ? 'var(--accent)' : 'var(--text-mid)',
+123:                     }}
+124:                     onClick={() => toggleTag(name)}
+125:                   >{active ? '✓ ' : ''}{name}</button>
+126:                 );
+127:               })}
+128:             </div>
+129:           )}
+130:           {tagOpen && state.tags.length === 0 && (
+131:             <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>No tags yet — add one in the Tags tab.</p>
+132:           )}
+133:           {!tagOpen && card.tags?.length > 0 && (
+134:             <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+135:               {card.tags.map((t) => <span key={t} className="char-tag">{t}</span>)}
+136:             </div>
+137:           )}
+138:           {!tagOpen && !card.tags?.length && (
+139:             <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>No tags assigned.</p>
+140:           )}
+141:         </div>
+142: 
+143:         {/* Delete */}
+144:         <button
+145:           className="btn btn-danger btn-block"
+146:           style={{ marginTop: 20 }}
+147:           onClick={() => { if (confirm(`Delete "${card.name}"?`)) removeCard(card.id); }}
+148:         >Delete Card</button>
+149:       </div>
+150:     </div>
+151:   );
+152: }
+153: 
+154: function ExpandedSection({ sec }) {
+155:   return (
+156:     <div style={{ marginTop: 12 }}>
+157:       {sec.type === 'key-value' && sec.keyValues ? (
+158:         <div className="stat-grid" style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+159:           {Object.entries(sec.keyValues).map(([k, v]) => (
+160:             <div key={k}>
+161:               <span className="stat-label">{k}</span><br />
+162:               <LinkedText text={String(v)} />
+163:             </div>
+164:           ))}
+165:         </div>
+166:       ) : sec.content ? (
+167:         <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+168:           <LinkedText text={sec.content} />
+169:         </div>
+170:       ) : null}
+171:     </div>
+172:   );
+173: }
+174: 
+175: function CollapsibleSection({ sec }) {
+176:   const [open, setOpen] = useState(false);
+177: 
+178:   return (
+179:     <div className="section-collapse">
+180:       <div className="section-collapse-header" onClick={() => setOpen(!open)}>
+181:         <h4>{sec.name}</h4>
+182:         <span className={'arrow' + (open ? ' open' : '')}>▸</span>
+183:       </div>
+184:       <div className={'section-collapse-body ' + (open ? 'expanded' : 'collapsed')}>
+185:         {sec.type === 'key-value' && sec.keyValues ? (
+186:           <div className="stat-grid">
+187:             {Object.entries(sec.keyValues).map(([k, v]) => (
+188:               <div key={k}>
+189:                 <span className="stat-label">{k}</span><br />
+190:                 <LinkedText text={String(v)} />
+191:               </div>
+192:             ))}
+193:           </div>
+194:         ) : sec.content ? (
+195:           <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.65, whiteSpace: 'pre-wrap', paddingBottom: 8 }}>
+196:             <LinkedText text={sec.content} />
+197:           </div>
+198:         ) : null}
+199:       </div>
+200:     </div>
+201:   );
+202: }
+</file>
+
+<file path="src/components/CardEditor.jsx">
+  1: import React, { useState, useRef } from 'react';
+  2: import { useApp } from '../context';
+  3: import { insertLink } from '../linking';
+  4: import { genId } from '../db';
+  5: 
+  6: export default function CardEditor({ card, onSave, onCancel }) {
+  7:   const { state, addCard } = useApp();
+  8:   const [draft, setDraft] = useState(JSON.parse(JSON.stringify(card)));
+  9:   const [linkModal, setLinkModal] = useState(null); // { sectionIndex, start, end, selectedText }
+ 10:   const [expandedSections, setExpandedSections] = useState(new Set());
+ 11:   const textareaRefs = useRef({});
+ 12: 
+ 13:   function toggleExpand(i) {
+ 14:     setExpandedSections((prev) => {
+ 15:       const next = new Set(prev);
+ 16:       next.has(i) ? next.delete(i) : next.add(i);
+ 17:       return next;
+ 18:     });
+ 19:   }
+ 20: 
+ 21:   function updateDraft(fn) {
+ 22:     setDraft((prev) => {
+ 23:       const next = JSON.parse(JSON.stringify(prev));
+ 24:       fn(next);
+ 25:       return next;
+ 26:     });
+ 27:   }
+ 28: 
+ 29:   function handleLinkSelection(sectionIndex) {
+ 30:     const textarea = textareaRefs.current[sectionIndex];
+ 31:     if (!textarea) return;
+ 32:     const start = textarea.selectionStart;
+ 33:     const end = textarea.selectionEnd;
+ 34:     if (start === end) return; // no selection
+ 35:     const selectedText = textarea.value.slice(start, end).trim();
+ 36:     if (!selectedText) return;
+ 37:     setLinkModal({ sectionIndex, start, end, selectedText });
+ 38:   }
+ 39: 
+ 40:   function applyLink(targetCardId) {
+ 41:     if (!linkModal) return;
+ 42:     const { sectionIndex, start, end, selectedText } = linkModal;
+ 43:     updateDraft((d) => {
+ 44:       const sec = d.sections[sectionIndex];
+ 45:       sec.content = insertLink(sec.content, start, end, targetCardId, selectedText);
+ 46:     });
+ 47:     setLinkModal(null);
+ 48:   }
+ 49: 
+ 50:   async function createStubAndLink() {
+ 51:     if (!linkModal) return;
+ 52:     const stubCard = await addCard({
+ 53:       name: linkModal.selectedText,
+ 54:       profileId: draft.profileId || '',
+ 55:       sections: [{ name: 'Description', type: 'text', content: '', priority: 1 }],
+ 56:       tags: [],
+ 57:     });
+ 58:     applyLink(stubCard.id);
+ 59:   }
+ 60: 
+ 61:   return (
+ 62:     <div className="fade-in">
+ 63:       {/* Name */}
+ 64:       <div className="edit-field">
+ 65:         <label>Name</label>
+ 66:         <input
+ 67:           type="text"
+ 68:           value={draft.name || ''}
+ 69:           placeholder="Card name..."
+ 70:           onChange={(e) => updateDraft((d) => { d.name = e.target.value; })}
+ 71:         />
+ 72:       </div>
+ 73: 
+ 74:       {/* Profile */}
+ 75:       <div className="edit-field">
+ 76:         <label>Profile</label>
+ 77:         <select
+ 78:           value={draft.profileId || ''}
+ 79:           onChange={(e) => updateDraft((d) => { d.profileId = e.target.value; })}
+ 80:         >
+ 81:           <option value="">— No profile —</option>
+ 82:           {state.profiles.map((p) => (
+ 83:             <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
+ 84:           ))}
+ 85:         </select>
+ 86:       </div>
+ 87: 
+ 88:       {/* Source */}
+ 89:       <div className="edit-field">
+ 90:         <label>Source</label>
+ 91:         <input
+ 92:           type="text"
+ 93:           value={draft.source || ''}
+ 94:           placeholder="Source material..."
+ 95:           onChange={(e) => updateDraft((d) => { d.source = e.target.value; })}
+ 96:         />
+ 97:       </div>
+ 98: 
+ 99:       {/* Sections */}
+100:       <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', margin: '8px 0' }}>
+101:         Sections
+102:       </label>
+103: 
+104:       {draft.sections.map((sec, i) => (
+105:         <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+106:           {/* Section header */}
+107:           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+108:             {i > 0 && (
+109:               <button className="btn btn-sm" style={{ padding: '2px 6px', fontSize: 12 }} onClick={() => {
+110:                 updateDraft((d) => {
+111:                   [d.sections[i - 1], d.sections[i]] = [d.sections[i], d.sections[i - 1]];
+112:                   d.sections.forEach((s, idx) => { s.priority = idx + 1; });
+113:                 });
+114:               }}>↑</button>
+115:             )}
+116:             {i < draft.sections.length - 1 && (
+117:               <button className="btn btn-sm" style={{ padding: '2px 6px', fontSize: 12 }} onClick={() => {
+118:                 updateDraft((d) => {
+119:                   [d.sections[i], d.sections[i + 1]] = [d.sections[i + 1], d.sections[i]];
+120:                   d.sections.forEach((s, idx) => { s.priority = idx + 1; });
+121:                 });
+122:               }}>↓</button>
+123:             )}
+124:             <input
+125:               type="text"
+126:               value={sec.name}
+127:               placeholder="Section name..."
+128:               style={{ flex: 1 }}
+129:               onChange={(e) => updateDraft((d) => { d.sections[i].name = e.target.value; })}
+130:             />
+131:             <button className="btn btn-secondary btn-sm" onClick={() => {
+132:               updateDraft((d) => {
+133:                 d.sections[i].type = d.sections[i].type === 'text' ? 'key-value' : 'text';
+134:                 if (d.sections[i].type === 'key-value' && !d.sections[i].keyValues) d.sections[i].keyValues = {};
+135:                 if (d.sections[i].type === 'text' && !d.sections[i].content) d.sections[i].content = '';
+136:               });
+137:             }}>{sec.type === 'text' ? '📝 Text' : '📊 KV'}</button>
+138:             <button
+139:               style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}
+140:               onClick={() => updateDraft((d) => {
+141:                 d.sections.splice(i, 1);
+142:                 d.sections.forEach((s, idx) => { s.priority = idx + 1; });
+143:               })}
+144:             >×</button>
+145:           </div>
+146: 
+147:           {/* Section content */}
+148:           {sec.type === 'text' ? (
+149:             <div>
+150:               <textarea
+151:                 ref={(el) => { textareaRefs.current[i] = el; }}
+152:                 rows={expandedSections.has(i) ? 12 : 3}
+153:                 value={sec.content || ''}
+154:                 placeholder="Section content... Select text and tap 🔗 to link"
+155:                 onChange={(e) => updateDraft((d) => { d.sections[i].content = e.target.value; })}
+156:               />
+157:               <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+158:                 <button
+159:                   className="btn btn-secondary btn-sm"
+160:                   onClick={() => handleLinkSelection(i)}
+161:                   title="Select text above, then tap to create a link"
+162:                 >🔗 Link</button>
+163:                 <button
+164:                   className="btn btn-secondary btn-sm"
+165:                   onClick={() => toggleExpand(i)}
+166:                   title={expandedSections.has(i) ? 'Collapse section' : 'Expand section'}
+167:                 >{expandedSections.has(i) ? '↕ Collapse' : '↕ Expand'}</button>
+168:               </div>
+169:             </div>
+170:           ) : (
+171:             <KeyValueEditor
+172:               keyValues={sec.keyValues || {}}
+173:               onChange={(kv) => updateDraft((d) => { d.sections[i].keyValues = kv; })}
+174:             />
+175:           )}
+176: 
+177:           <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 6 }}>
+178:             Priority {i + 1}{i < 2 ? ' — shown expanded' : ' — collapsed'}
+179:           </div>
+180:         </div>
+181:       ))}
+182: 
+183:       <button className="btn btn-secondary btn-sm" onClick={() => {
+184:         updateDraft((d) => {
+185:           d.sections.push({ name: '', type: 'text', content: '', priority: d.sections.length + 1 });
+186:         });
+187:       }}>+ Add Section</button>
+188: 
+189:       {/* Actions */}
+190:       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+191:         <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onCancel}>Cancel</button>
+192:         <button className="btn btn-primary" style={{ flex: 2 }} onClick={() => onSave(draft)}>Save</button>
+193:       </div>
+194: 
+195:       {/* Link assignment modal */}
+196:       {linkModal && (
+197:         <LinkModal
+198:           selectedText={linkModal.selectedText}
+199:           cards={state.cards.filter((c) => c.id !== draft.id)}
+200:           onSelect={applyLink}
+201:           onCreateStub={createStubAndLink}
+202:           onClose={() => setLinkModal(null)}
+203:         />
+204:       )}
+205:     </div>
+206:   );
+207: }
+208: 
+209: function KeyValueEditor({ keyValues, onChange }) {
+210:   const entries = Object.entries(keyValues);
+211: 
+212:   function update(fn) {
+213:     const next = { ...keyValues };
+214:     fn(next);
+215:     onChange(next);
+216:   }
+217: 
+218:   return (
+219:     <div>
+220:       {entries.map(([key, val], i) => (
+221:         <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+222:           <input
+223:             type="text"
+224:             value={key}
+225:             placeholder="Key"
+226:             style={{ flex: 1, padding: '6px 8px', fontSize: 12 }}
+227:             onChange={(e) => {
+228:               const newKey = e.target.value;
+229:               const newKv = {};
+230:               for (const [k, v] of Object.entries(keyValues)) {
+231:                 newKv[k === key ? newKey : k] = v;
+232:               }
+233:               onChange(newKv);
+234:             }}
+235:           />
+236:           <input
+237:             type="text"
+238:             value={val}
+239:             placeholder="Value"
+240:             style={{ flex: 1, padding: '6px 8px', fontSize: 12 }}
+241:             onChange={(e) => update((kv) => { kv[key] = e.target.value; })}
+242:           />
+243:           <button
+244:             style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 14 }}
+245:             onClick={() => update((kv) => { delete kv[key]; })}
+246:           >×</button>
+247:         </div>
+248:       ))}
+249:       <button className="btn btn-secondary btn-sm" style={{ marginTop: 4 }} onClick={() => update((kv) => { kv[''] = ''; })}>
+250:         + Add
+251:       </button>
+252:     </div>
+253:   );
+254: }
+255: 
+256: function LinkModal({ selectedText, cards, onSelect, onCreateStub, onClose }) {
+257:   const [search, setSearch] = useState('');
+258: 
+259:   const filtered = cards.filter((c) =>
+260:     c.name.toLowerCase().includes(search.toLowerCase())
+261:   );
+262: 
+263:   return (
+264:     <div style={{
+265:       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300,
+266:       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+267:     }} onClick={onClose}>
+268:       <div style={{
+269:         background: 'var(--surface)', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480,
+270:         maxHeight: '70vh', display: 'flex', flexDirection: 'column', padding: '16px 16px 0',
+271:       }} onClick={(e) => e.stopPropagation()}>
+272:         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+273:           <div>
+274:             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Link "{selectedText}"</div>
+275:             <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Choose a card to link to</div>
+276:           </div>
+277:           <button style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 22, cursor: 'pointer' }} onClick={onClose}>×</button>
+278:         </div>
+279: 
+280:         <input
+281:           type="search"
+282:           placeholder="Search cards..."
+283:           value={search}
+284:           onChange={(e) => setSearch(e.target.value)}
+285:           style={{ marginBottom: 8 }}
+286:           autoFocus
+287:         />
+288: 
+289:         <div style={{ overflowY: 'auto', flex: 1, paddingBottom: 16 }}>
+290:           {/* Create stub option */}
+291:           <button
+292:             className="card-preview"
+293:             style={{ marginBottom: 6, borderLeft: '3px solid var(--accent)' }}
+294:             onClick={onCreateStub}
+295:           >
+296:             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+297:               <span style={{ fontSize: 18 }}>✨</span>
+298:               <div>
+299:                 <h3 style={{ fontSize: 14 }}>Create new card: "{selectedText}"</h3>
+300:                 <div className="meta">Creates a stub card you can fill in later</div>
+301:               </div>
+302:             </div>
+303:           </button>
+304: 
+305:           {filtered.map((card) => (
+306:             <button
+307:               key={card.id}
+308:               className="card-preview"
+309:               style={{ marginBottom: 4 }}
+310:               onClick={() => onSelect(card.id)}
+311:             >
+312:               <h3 style={{ fontSize: 14 }}>{card.name}</h3>
+313:             </button>
+314:           ))}
+315: 
+316:           {filtered.length === 0 && (
+317:             <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)', fontSize: 13 }}>
+318:               No cards match. Use the create option above.
+319:             </div>
+320:           )}
+321:         </div>
+322:       </div>
+323:     </div>
+324:   );
+325: }
+</file>
+
+<file path="src/components/ChatPanel.jsx">
+  1: import React, { useState, useEffect, useRef } from 'react';
+  2: import { createPortal } from 'react-dom';
+  3: import { sendChatMessage } from '../api';
+  4: import { useApp } from '../context';
+  5: 
+  6: const WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search' };
+  7: 
+  8: // Placeholder system prompts — full versions come with sections 5 & 6
+  9: const SYSTEM_PROMPTS = {
+ 10:   create: 'You are a helpful assistant for the Grimoire app, which helps users organize reference cards. Help the user create a new scan profile by understanding their use case and the fields they need. When you are ready to propose a schema, output it in a ```json code fence with { "type": "schema_proposal", "name": "...", "fields": [...] }.',
+ 11:   update: 'You are a helpful assistant for the Grimoire app. Help the user update their existing scan profile. When you are ready to propose changes, output them in a ```json code fence with { "type": "schema_diff", "changes": [...] }.',
+ 12: };
+ 13: 
+ 14: function buildApiMessages(messages) {
+ 15:   return messages
+ 16:     .filter((m) => m.role === 'user' || m.role === 'assistant')
+ 17:     .map((msg) => {
+ 18:       if (msg.role === 'user') {
+ 19:         if (msg.images?.length > 0) {
+ 20:           return {
+ 21:             role: 'user',
+ 22:             content: [
+ 23:               ...msg.images.map((img) => ({
+ 24:                 type: 'image',
+ 25:                 source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
+ 26:               })),
+ 27:               { type: 'text', text: msg.content || '' },
+ 28:             ],
+ 29:           };
+ 30:         }
+ 31:         return { role: 'user', content: msg.content || '' };
+ 32:       }
+ 33:       // assistant — use rawText so JSON fences are preserved in history
+ 34:       return { role: 'assistant', content: msg.rawText || (typeof msg.content === 'string' ? msg.content : '') };
+ 35:     });
+ 36: }
+ 37: 
+ 38: function parseAssistantResponse(text) {
+ 39:   const fenceMatch = text.match(/```json\s*([\s\S]*?)```/);
+ 40:   if (!fenceMatch) return { content: text, rawText: text, parsed: null };
+ 41:   try {
+ 42:     const parsed = JSON.parse(fenceMatch[1].trim());
+ 43:     return { content: parsed, rawText: text, parsed };
+ 44:   } catch {
+ 45:     return { content: text, rawText: text, parsed: null };
+ 46:   }
+ 47: }
+ 48: 
+ 49: export default function ChatPanel({ mode, existingProfile, onClose, onSaveProfile }) {
+ 50:   const { state } = useApp();
+ 51:   const [messages, setMessages] = useState([]);
+ 52:   const [inputText, setInputText] = useState('');
+ 53:   const [attachedImages, setAttachedImages] = useState([]);
+ 54:   const [isLoading, setIsLoading] = useState(false);
+ 55:   const [visible, setVisible] = useState(false);
+ 56:   const threadRef = useRef(null);
+ 57:   const inputRef = useRef(null);
+ 58:   const fileRef = useRef(null);
+ 59: 
+ 60:   const title = mode === 'create'
+ 61:     ? 'Create Profile'
+ 62:     : `Update Profile: ${existingProfile?.name || ''}`;
+ 63: 
+ 64:   // Slide-in on mount
+ 65:   useEffect(() => {
+ 66:     requestAnimationFrame(() => setVisible(true));
+ 67:   }, []);
+ 68: 
+ 69:   // Auto-scroll to bottom on new messages or loading state change
+ 70:   useEffect(() => {
+ 71:     if (threadRef.current) {
+ 72:       threadRef.current.scrollTop = threadRef.current.scrollHeight;
+ 73:     }
+ 74:   }, [messages, isLoading]);
+ 75: 
+ 76:   async function handleSend() {
+ 77:     const text = inputText.trim();
+ 78:     if (!text && attachedImages.length === 0) return;
+ 79:     if (isLoading) return;
+ 80: 
+ 81:     const userMsg = {
+ 82:       role: 'user',
+ 83:       content: text,
+ 84:       images: attachedImages,
+ 85:       timestamp: new Date(),
+ 86:     };
+ 87: 
+ 88:     const updatedMessages = [...messages, userMsg];
+ 89:     setMessages(updatedMessages);
+ 90:     setInputText('');
+ 91:     setAttachedImages([]);
+ 92:     if (inputRef.current) inputRef.current.style.height = 'auto';
+ 93:     setIsLoading(true);
+ 94: 
+ 95:     try {
+ 96:       const apiMessages = buildApiMessages(updatedMessages);
+ 97:       const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.create;
+ 98: 
+ 99:       // Cost guardrail: warn before large calls
+100:       const estimatedTokens = JSON.stringify({ messages: apiMessages, system: systemPrompt }).length / 4;
+101:       if (estimatedTokens > 30000) {
+102:         const kTokens = Math.round(estimatedTokens / 1000);
+103:         const ok = window.confirm(`This will send approximately ${kTokens}k tokens to Claude. Continue?`);
+104:         if (!ok) {
+105:           setIsLoading(false);
+106:           // Restore input state
+107:           setMessages((prev) => prev.filter((m) => m !== userMsg));
+108:           setInputText(text);
+109:           setAttachedImages(userMsg.images);
+110:           return;
+111:         }
+112:       }
+113: 
+114:       const { text: responseText, usage } = await sendChatMessage(
+115:         apiMessages, systemPrompt, state.apiKey, [WEB_SEARCH_TOOL]
+116:       );
+117: 
+118:       const { content, rawText, parsed } = parseAssistantResponse(responseText);
+119:       setMessages((prev) => [...prev, {
+120:         role: 'assistant',
+121:         content,
+122:         rawText,
+123:         parsed,
+124:         usage,
+125:         timestamp: new Date(),
+126:       }]);
+127:     } catch (err) {
+128:       setMessages((prev) => [...prev, {
+129:         role: 'error',
+130:         content: err.message || 'Request failed.',
+131:         timestamp: new Date(),
+132:       }]);
+133:     } finally {
+134:       setIsLoading(false);
+135:     }
+136:   }
+137: 
+138:   function handleKeyDown(e) {
+139:     if (e.key === 'Enter' && !e.shiftKey) {
+140:       e.preventDefault();
+141:       handleSend();
+142:     }
+143:   }
+144: 
+145:   async function handleFileAttach(e) {
+146:     const files = Array.from(e.target.files || []);
+147:     e.target.value = '';
+148:     for (const file of files) {
+149:       const dataUrl = await new Promise((resolve) => {
+150:         const reader = new FileReader();
+151:         reader.onload = (ev) => resolve(ev.target.result);
+152:         reader.readAsDataURL(file);
+153:       });
+154:       setAttachedImages((prev) => [
+155:         ...prev,
+156:         { base64: dataUrl.split(',')[1], dataUrl, mediaType: file.type || 'image/jpeg' },
+157:       ]);
+158:     }
+159:   }
+160: 
+161:   function renderMessage(msg, idx) {
+162:     if (msg.role === 'error') {
+163:       return (
+164:         <div key={idx} className="chat-bubble chat-bubble-error">{msg.content}</div>
+165:       );
+166:     }
+167: 
+168:     if (msg.role === 'user') {
+169:       return (
+170:         <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+171:           {msg.images?.length > 0 && (
+172:             <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+173:               {msg.images.map((img, i) => (
+174:                 <img key={i} src={img.dataUrl} alt="" style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
+175:               ))}
+176:             </div>
+177:           )}
+178:           {msg.content && <div className="chat-bubble chat-bubble-user">{msg.content}</div>}
+179:         </div>
+180:       );
+181:     }
+182: 
+183:     // assistant
+184:     const isStructured = msg.parsed && (msg.parsed.type === 'schema_proposal' || msg.parsed.type === 'schema_diff');
+185:     return (
+186:       <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+187:         <div className="chat-bubble chat-bubble-assistant">
+188:           {isStructured
+189:             ? <em style={{ color: 'var(--accent)' }}>Schema proposal received — review UI coming in a future update.</em>
+190:             : (typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2))
+191:           }
+192:         </div>
+193:         {msg.usage && (
+194:           <div className="chat-usage">
+195:             ~{msg.usage.input_tokens?.toLocaleString()} input · ~{msg.usage.output_tokens?.toLocaleString()} output tokens
+196:           </div>
+197:         )}
+198:       </div>
+199:     );
+200:   }
+201: 
+202:   return createPortal(
+203:     <div className="chat-panel-backdrop" onClick={onClose}>
+204:       <div
+205:         className={'chat-panel' + (visible ? ' chat-panel-visible' : '')}
+206:         onClick={(e) => e.stopPropagation()}
+207:       >
+208:         {/* Header */}
+209:         <div className="chat-panel-header">
+210:           <span className="chat-panel-title">{title}</span>
+211:           <button className="chat-panel-close" onClick={onClose}>✕</button>
+212:         </div>
+213: 
+214:         {/* Message thread */}
+215:         <div className="chat-panel-thread" ref={threadRef}>
+216:           {messages.length === 0 && (
+217:             <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 13, paddingTop: 40 }}>
+218:               {mode === 'create'
+219:                 ? 'Describe the cards you want to organize — what game, system, or topic?'
+220:                 : 'What would you like to change about this profile?'}
+221:             </div>
+222:           )}
+223:           {messages.map(renderMessage)}
+224:           {isLoading && (
+225:             <div className="chat-bubble chat-bubble-assistant chat-bubble-loading">…</div>
+226:           )}
+227:         </div>
+228: 
+229:         {/* Input area */}
+230:         <div className="chat-panel-input-area">
+231:           {attachedImages.length > 0 && (
+232:             <div className="chat-thumbs">
+233:               {attachedImages.map((img, i) => (
+234:                 <div key={i} className="chat-thumb">
+235:                   <img src={img.dataUrl} alt="" />
+236:                   <button
+237:                     className="chat-thumb-remove"
+238:                     onClick={() => setAttachedImages((prev) => prev.filter((_, j) => j !== i))}
+239:                   >✕</button>
+240:                 </div>
+241:               ))}
+242:             </div>
+243:           )}
+244:           <div className="chat-input-row">
+245:             <input
+246:               ref={fileRef}
+247:               type="file"
+248:               accept="image/*"
+249:               multiple
+250:               style={{ display: 'none' }}
+251:               onChange={handleFileAttach}
+252:             />
+253:             <button
+254:               className="btn btn-secondary btn-sm chat-attach-btn"
+255:               onClick={() => fileRef.current?.click()}
+256:               title="Attach image"
+257:             >📎</button>
+258:             <textarea
+259:               ref={inputRef}
+260:               value={inputText}
+261:               rows={2}
+262:               placeholder="Type or dictate a message..."
+263:               style={{ flex: 1, fontSize: 16, resize: 'none', overflowY: 'auto', maxHeight: 168 }}
+264:               onChange={(e) => {
+265:                 setInputText(e.target.value);
+266:                 e.target.style.height = 'auto';
+267:                 e.target.style.height = Math.min(e.target.scrollHeight, 168) + 'px';
+268:               }}
+269:               onKeyDown={handleKeyDown}
+270:             />
+271:             <button
+272:               className="btn btn-primary btn-sm chat-send-btn"
+273:               disabled={isLoading || (!inputText.trim() && attachedImages.length === 0)}
+274:               onClick={handleSend}
+275:             >Send</button>
+276:           </div>
+277:         </div>
+278:       </div>
+279:     </div>,
+280:     document.body
+281:   );
+282: }
+</file>
+
+<file path="src/components/LinkedText.jsx">
+ 1: import React from 'react';
+ 2: import { segmentText } from '../linking';
+ 3: import { useApp } from '../context';
+ 4: 
+ 5: /**
+ 6:  * Renders text with [[cardId|display text]] links as tappable gold spans.
+ 7:  * Clicking a link navigates to that card.
+ 8:  */
+ 9: export default function LinkedText({ text, className, style }) {
+10:   const { state, navigateToCard } = useApp();
+11: 
+12:   if (!text) return null;
+13: 
+14:   const segments = segmentText(text);
+15: 
+16:   if (segments.length === 0) return null;
+17:   if (segments.length === 1 && segments[0].type === 'text') {
+18:     return <span className={className} style={style}>{segments[0].content}</span>;
+19:   }
+20: 
+21:   return (
+22:     <span className={className} style={style}>
+23:       {segments.map((seg, i) => {
+24:         if (seg.type === 'text') {
+25:           return <span key={i}>{seg.content}</span>;
+26:         }
+27: 
+28:         const targetCard = state.cards.find((c) => c.id === seg.cardId);
+29:         const exists = !!targetCard;
+30: 
+31:         return (
+32:           <span
+33:             key={i}
+34:             className="linked-term"
+35:             data-exists={exists}
+36:             title={exists ? `Go to: ${targetCard.name}` : `Card not found: ${seg.cardId}`}
+37:             onClick={(e) => {
+38:               e.stopPropagation();
+39:               if (exists) navigateToCard(seg.cardId, false);
+40:             }}
+41:           >
+42:             {seg.displayText}
+43:           </span>
+44:         );
+45:       })}
+46:     </span>
+47:   );
+48: }
+</file>
+
+<file path="src/components/QA.jsx">
+ 1: import React, { useState, useEffect } from 'react';
+ 2: import { useApp } from '../context';
+ 3: import checklistsData from '../qa-checklists.json';
+ 4: import QAChecklist from './QAChecklist';
+ 5: 
+ 6: export default function QA() {
+ 7:   const { getQAState, saveQAState, resetQAState } = useApp();
+ 8:   const [allStates, setAllStates] = useState({});
+ 9:   const [loaded, setLoaded] = useState(false);
+10: 
+11:   const checklists = checklistsData.checklists || [];
+12: 
+13:   useEffect(() => {
+14:     async function loadAll() {
+15:       const entries = await Promise.all(
+16:         checklists.map(async (cl) => {
+17:           const state = await getQAState(cl.id);
+18:           return [cl.id, state || { itemStates: {}, generalNotes: '' }];
+19:         })
+20:       );
+21:       setAllStates(Object.fromEntries(entries));
+22:       setLoaded(true);
+23:     }
+24:     loadAll();
+25:   }, []);
+26: 
+27:   async function handleStateChange(checklistId, newState) {
+28:     await saveQAState(checklistId, newState);
+29:     setAllStates((prev) => ({ ...prev, [checklistId]: newState }));
+30:   }
+31: 
+32:   async function handleReset(checklistId) {
+33:     await resetQAState(checklistId);
+34:     setAllStates((prev) => ({
+35:       ...prev,
+36:       [checklistId]: { itemStates: {}, generalNotes: '' },
+37:     }));
+38:   }
+39: 
+40:   if (!loaded) {
+41:     return (
+42:       <div className="empty-state">
+43:         <div className="icon">📋</div>
+44:         <div className="title">Loading checklists...</div>
+45:       </div>
+46:     );
+47:   }
+48: 
+49:   return (
+50:     <div className="section fade-in">
+51:       <h2 className="section-title">QA Checklists</h2>
+52:       <p className="section-desc">
+53:         Work through test checklists for features ready to verify. Check off items, add notes, and export a report.
+54:       </p>
+55: 
+56:       {checklists.length === 0 ? (
+57:         <div className="empty-state">
+58:           <div className="icon">📋</div>
+59:           <div className="title">No checklists ready for testing</div>
+60:           <div className="sub">Checklists appear here when a feature is implemented and moved to Ready for Testing.</div>
+61:         </div>
+62:       ) : (
+63:         checklists.map((checklist) => (
+64:           <QAChecklist
+65:             key={checklist.id}
+66:             checklist={checklist}
+67:             qaState={allStates[checklist.id]}
+68:             onStateChange={handleStateChange}
+69:             onReset={handleReset}
+70:           />
+71:         ))
+72:       )}
+73:     </div>
+74:   );
+75: }
+</file>
+
+<file path="src/components/QAChecklist.jsx">
+  1: import React, { useState, useRef, useEffect } from 'react';
+  2: 
+  3: function AutoTextarea({ defaultValue, onChange, placeholder }) {
+  4:   const ref = useRef(null);
+  5: 
+  6:   useEffect(() => {
+  7:     if (ref.current) resizeTextarea(ref.current);
+  8:   }, []);
+  9: 
+ 10:   function resizeTextarea(el) {
+ 11:     el.style.height = 'auto';
+ 12:     const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 24;
+ 13:     const maxHeight = lineHeight * 6;
+ 14:     el.style.height = Math.min(el.scrollHeight, maxHeight) + 'px';
+ 15:     el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
+ 16:   }
+ 17: 
+ 18:   function handleInput(e) {
+ 19:     resizeTextarea(e.target);
+ 20:     onChange(e.target.value);
+ 21:   }
+ 22: 
+ 23:   return (
+ 24:     <textarea
+ 25:       ref={ref}
+ 26:       defaultValue={defaultValue}
+ 27:       onInput={handleInput}
+ 28:       placeholder={placeholder}
+ 29:       style={{
+ 30:         fontSize: 16,
+ 31:         minHeight: 48,
+ 32:         resize: 'none',
+ 33:         overflowY: 'hidden',
+ 34:         lineHeight: '1.5',
+ 35:         width: '100%',
+ 36:       }}
+ 37:     />
+ 38:   );
+ 39: }
+ 40: 
+ 41: export default function QAChecklist({ checklist, qaState, onStateChange, onReset }) {
+ 42:   const [expanded, setExpanded] = useState(false);
+ 43:   const [openNotes, setOpenNotes] = useState({});
+ 44:   const [toast, setToast] = useState('');
+ 45:   const [resetKey, setResetKey] = useState(0);
+ 46: 
+ 47:   const itemStates = qaState?.itemStates || {};
+ 48:   const generalNotes = qaState?.generalNotes || '';
+ 49: 
+ 50:   const checkedCount = checklist.items.filter((item) => itemStates[item.id]?.checked).length;
+ 51:   const total = checklist.items.length;
+ 52: 
+ 53:   function getItemState(itemId) {
+ 54:     return itemStates[itemId] || { checked: false, note: '' };
+ 55:   }
+ 56: 
+ 57:   function handleToggleCheck(itemId) {
+ 58:     const current = getItemState(itemId);
+ 59:     const newItemStates = {
+ 60:       ...itemStates,
+ 61:       [itemId]: { ...current, checked: !current.checked },
+ 62:     };
+ 63:     onStateChange(checklist.id, { itemStates: newItemStates, generalNotes });
+ 64:   }
+ 65: 
+ 66:   function handleNoteChange(itemId, note) {
+ 67:     const current = getItemState(itemId);
+ 68:     const newItemStates = {
+ 69:       ...itemStates,
+ 70:       [itemId]: { ...current, note },
+ 71:     };
+ 72:     onStateChange(checklist.id, { itemStates: newItemStates, generalNotes });
+ 73:   }
+ 74: 
+ 75:   function handleGeneralNotesChange(notes) {
+ 76:     onStateChange(checklist.id, { itemStates, generalNotes: notes });
+ 77:   }
+ 78: 
+ 79:   function handleReset() {
+ 80:     if (!confirm(`Reset all checks and notes for "${checklist.featureName}"?`)) return;
+ 81:     setOpenNotes({});
+ 82:     setResetKey((k) => k + 1);
+ 83:     onReset(checklist.id);
+ 84:   }
+ 85: 
+ 86:   async function handleExport() {
+ 87:     const date = new Date().toLocaleDateString('en-CA');
+ 88:     const lines = [];
+ 89:     lines.push(`## QA Report: ${checklist.featureName}`);
+ 90:     lines.push(`Tested: ${date}`);
+ 91:     lines.push(`Implemented: ${checklist.implementedDate}`);
+ 92:     lines.push('');
+ 93:     lines.push('### Checklist');
+ 94:     for (const item of checklist.items) {
+ 95:       const s = getItemState(item.id);
+ 96:       const mark = s.checked ? '[x]' : '[ ]';
+ 97:       const suffix = s.checked ? '' : ' (not yet verified)';
+ 98:       lines.push(`- ${mark} ${item.text}${suffix}`);
+ 99:       if (s.note?.trim()) {
+100:         lines.push(`  - Note: ${s.note.trim()}`);
+101:       }
+102:     }
+103:     if (generalNotes.trim()) {
+104:       lines.push('');
+105:       lines.push('### General Notes');
+106:       lines.push(generalNotes.trim());
+107:     }
+108:     const markdown = lines.join('\n');
+109: 
+110:     if (navigator.clipboard?.writeText) {
+111:       try {
+112:         await navigator.clipboard.writeText(markdown);
+113:         showToast('Copied to clipboard');
+114:         return;
+115:       } catch {
+116:         // fall through to legacy
+117:       }
+118:     }
+119: 
+120:     try {
+121:       const el = document.createElement('textarea');
+122:       el.value = markdown;
+123:       el.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+124:       document.body.appendChild(el);
+125:       el.focus();
+126:       el.select();
+127:       const ok = document.execCommand('copy');
+128:       document.body.removeChild(el);
+129:       showToast(ok ? 'Copied to clipboard' : 'Copy failed — check clipboard permissions');
+130:     } catch {
+131:       showToast('Copy failed — check clipboard permissions');
+132:     }
+133:   }
+134: 
+135:   function showToast(msg) {
+136:     setToast(msg);
+137:     setTimeout(() => setToast(''), 2500);
+138:   }
+139: 
+140:   return (
+141:     <div style={{
+142:       background: 'var(--card-bg)',
+143:       border: '1px solid var(--border)',
+144:       borderRadius: 10,
+145:       marginBottom: 10,
+146:       overflow: 'hidden',
+147:     }}>
+148:       {/* Header / toggle */}
+149:       <button
+150:         onClick={() => setExpanded((e) => !e)}
+151:         style={{
+152:           width: '100%',
+153:           background: 'none',
+154:           border: 'none',
+155:           padding: '14px 16px',
+156:           textAlign: 'left',
+157:           cursor: 'pointer',
+158:           display: 'flex',
+159:           justifyContent: 'space-between',
+160:           alignItems: 'center',
+161:           gap: 10,
+162:           minHeight: 44,
+163:         }}
+164:       >
+165:         <div style={{ flex: 1, minWidth: 0 }}>
+166:           <div style={{
+167:             fontFamily: 'var(--font-display)',
+168:             fontSize: 15,
+169:             color: 'var(--text)',
+170:             lineHeight: 1.2,
+171:             marginBottom: 3,
+172:           }}>
+173:             {checklist.featureName}
+174:           </div>
+175:           <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+176:             {checklist.implementedDate} · {checkedCount}/{total} checked
+177:           </div>
+178:         </div>
+179:         <div style={{
+180:           fontSize: 18,
+181:           color: checkedCount === total && total > 0 ? 'var(--accent)' : 'var(--text-dim)',
+182:           flexShrink: 0,
+183:         }}>
+184:           {expanded ? '▲' : '▼'}
+185:         </div>
+186:       </button>
+187: 
+188:       {expanded && (
+189:         <div style={{ borderTop: '1px solid var(--border)', padding: '14px 16px' }}>
+190:           {/* Summary */}
+191:           <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5, marginBottom: 8 }}>
+192:             {checklist.summary}
+193:           </div>
+194:           {checklist.deviations && (
+195:             <div style={{
+196:               fontSize: 12,
+197:               color: 'var(--text-dim)',
+198:               lineHeight: 1.4,
+199:               marginBottom: 12,
+200:               fontStyle: 'italic',
+201:             }}>
+202:               Deviations: {checklist.deviations}
+203:             </div>
+204:           )}
+205: 
+206:           {/* Checklist items */}
+207:           <div style={{ marginBottom: 16 }}>
+208:             {checklist.items.map((item) => {
+209:               const s = getItemState(item.id);
+210:               const noteOpen = !!openNotes[item.id];
+211:               return (
+212:                 <div key={item.id} style={{ marginBottom: 6 }}>
+213:                   <div style={{
+214:                     display: 'flex',
+215:                     alignItems: 'flex-start',
+216:                     gap: 10,
+217:                     minHeight: 44,
+218:                   }}>
+219:                     {/* Checkbox */}
+220:                     <button
+221:                       onClick={() => handleToggleCheck(item.id)}
+222:                       style={{
+223:                         flexShrink: 0,
+224:                         width: 26,
+225:                         height: 26,
+226:                         marginTop: 2,
+227:                         borderRadius: 6,
+228:                         border: s.checked
+229:                           ? '2px solid var(--accent)'
+230:                           : '2px solid var(--border)',
+231:                         background: s.checked ? 'var(--accent)' : 'transparent',
+232:                         cursor: 'pointer',
+233:                         display: 'flex',
+234:                         alignItems: 'center',
+235:                         justifyContent: 'center',
+236:                         color: '#fff',
+237:                         fontSize: 14,
+238:                         fontWeight: 700,
+239:                       }}
+240:                     >
+241:                       {s.checked ? '✓' : ''}
+242:                     </button>
+243: 
+244:                     {/* Item text */}
+245:                     <div style={{
+246:                       flex: 1,
+247:                       fontSize: 14,
+248:                       color: s.checked ? 'var(--text-mid)' : 'var(--text)',
+249:                       lineHeight: 1.4,
+250:                       paddingTop: 4,
+251:                       textDecoration: s.checked ? 'line-through' : 'none',
+252:                       opacity: s.checked ? 0.7 : 1,
+253:                     }}>
+254:                       {item.text}
+255:                     </div>
+256: 
+257:                     {/* Note toggle */}
+258:                     <button
+259:                       onClick={() => setOpenNotes((n) => ({ ...n, [item.id]: !n[item.id] }))}
+260:                       title="Add note"
+261:                       style={{
+262:                         flexShrink: 0,
+263:                         width: 32,
+264:                         height: 32,
+265:                         marginTop: 0,
+266:                         background: s.note?.trim()
+267:                           ? 'var(--accent-glow)'
+268:                           : 'transparent',
+269:                         border: '1px solid ' + (s.note?.trim() ? 'var(--accent)' : 'var(--border)'),
+270:                         borderRadius: 6,
+271:                         color: s.note?.trim() ? 'var(--accent)' : 'var(--text-dim)',
+272:                         cursor: 'pointer',
+273:                         fontSize: 14,
+274:                         display: 'flex',
+275:                         alignItems: 'center',
+276:                         justifyContent: 'center',
+277:                       }}
+278:                     >
+279:                       ✎
+280:                     </button>
+281:                   </div>
+282: 
+283:                   {/* Note textarea */}
+284:                   {noteOpen && (
+285:                     <div style={{ paddingLeft: 36, paddingTop: 6 }}>
+286:                       <AutoTextarea
+287:                         key={`${checklist.id}-note-${item.id}-${resetKey}`}
+288:                         defaultValue={s.note || ''}
+289:                         onChange={(val) => handleNoteChange(item.id, val)}
+290:                         placeholder="Note a bug, question, or observation..."
+291:                       />
+292:                     </div>
+293:                   )}
+294:                 </div>
+295:               );
+296:             })}
+297:           </div>
+298: 
+299:           {/* General notes */}
+300:           <div style={{ marginBottom: 16 }}>
+301:             <div style={{
+302:               fontSize: 11,
+303:               fontWeight: 700,
+304:               color: 'var(--text-dim)',
+305:               textTransform: 'uppercase',
+306:               letterSpacing: '0.5px',
+307:               marginBottom: 6,
+308:             }}>
+309:               General Notes
+310:             </div>
+311:             <AutoTextarea
+312:               key={`${checklist.id}-general-${resetKey}`}
+313:               defaultValue={generalNotes}
+314:               onChange={handleGeneralNotesChange}
+315:               placeholder="Overall feedback, anything that doesn't fit a specific item..."
+316:             />
+317:           </div>
+318: 
+319:           {/* Actions */}
+320:           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+321:             <button
+322:               className="btn btn-primary btn-sm"
+323:               onClick={handleExport}
+324:               style={{ minHeight: 44, flex: 1 }}
+325:             >
+326:               Export Report
+327:             </button>
+328:             <button
+329:               className="btn btn-danger btn-sm"
+330:               onClick={handleReset}
+331:               style={{ minHeight: 44 }}
+332:             >
+333:               Reset
+334:             </button>
+335:           </div>
+336: 
+337:           {/* Toast */}
+338:           {toast && (
+339:             <div style={{
+340:               marginTop: 10,
+341:               padding: '8px 12px',
+342:               background: 'var(--accent-glow)',
+343:               border: '1px solid var(--accent)',
+344:               borderRadius: 8,
+345:               fontSize: 13,
+346:               color: 'var(--accent)',
+347:               textAlign: 'center',
+348:             }}>
+349:               {toast}
+350:             </div>
+351:           )}
+352:         </div>
+353:       )}
+354:     </div>
+355:   );
+356: }
+</file>
+
+<file path="src/components/Settings.jsx">
+  1: import React, { useRef } from 'react';
+  2: import { useApp } from '../context';
+  3: import { exportToJSON, importFromJSON, createBackup, DND_PROFILE } from '../db';
+  4: import db from '../db';
+  5: 
+  6: export default function Settings() {
+  7:   const { state, setApiKey, reloadAll } = useApp();
+  8:   const fileRef = useRef(null);
+  9: 
+ 10:   function handleExport() {
+ 11:     const json = exportToJSON(state.cards, state.profiles, state.tags);
+ 12:     const blob = new Blob([json], { type: 'application/json' });
+ 13:     const url = URL.createObjectURL(blob);
+ 14:     const a = document.createElement('a');
+ 15:     a.href = url;
+ 16:     a.download = `grimoire-backup-${new Date().toISOString().slice(0, 10)}.json`;
+ 17:     a.click();
+ 18:     URL.revokeObjectURL(url);
+ 19:   }
+ 20: 
+ 21:   async function handleImport(e) {
+ 22:     const file = e.target.files?.[0];
+ 23:     if (!file) return;
+ 24:     try {
+ 25:       const text = await file.text();
+ 26:       const result = await importFromJSON(text);
+ 27:       await reloadAll();
+ 28:       alert(`Imported ${result.cardCount} cards, ${result.profileCount} profiles.`);
+ 29:     } catch {
+ 30:       alert('Invalid backup file.');
+ 31:     }
+ 32:   }
+ 33: 
+ 34:   async function handleBackup() {
+ 35:     await createBackup();
+ 36:     alert('Backup saved to IndexedDB.');
+ 37:   }
+ 38: 
+ 39:   async function handleClearAll() {
+ 40:     if (!confirm('Delete ALL data? This cannot be undone.')) return;
+ 41:     await db.cards.clear();
+ 42:     await db.profiles.clear();
+ 43:     await db.tags.clear();
+ 44:     await db.profiles.put({ ...DND_PROFILE });
+ 45:     await reloadAll();
+ 46:   }
+ 47: 
+ 48:   return (
+ 49:     <div className="section fade-in">
+ 50:       <h2 className="section-title">Settings</h2>
+ 51: 
+ 52:       {/* API Key */}
+ 53:       <div className="setting-group">
+ 54:         <label>Anthropic API Key</label>
+ 55:         <input
+ 56:           type="password"
+ 57:           placeholder="sk-ant-..."
+ 58:           value={state.apiKey}
+ 59:           onChange={(e) => setApiKey(e.target.value.trim())}
+ 60:         />
+ 61:         <div style={{ marginTop: 8 }}>
+ 62:           <span className={'api-status ' + (state.apiKey ? 'ok' : 'missing')}>
+ 63:             {state.apiKey ? '✓ Key saved' : '✗ No key set'}
+ 64:           </span>
+ 65:         </div>
+ 66:         <p className="help">Required for scanning. Get a key at console.anthropic.com. Stored locally in IndexedDB.</p>
+ 67:       </div>
+ 68: 
+ 69:       {/* Stats */}
+ 70:       <div className="setting-group">
+ 71:         <label>Library Stats</label>
+ 72:         <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.8 }}>
+ 73:           Total cards: {state.cards.length}<br />
+ 74:           Profiles: {state.profiles.length}<br />
+ 75:           Tags: {state.tags.length}
+ 76:         </div>
+ 77:       </div>
+ 78: 
+ 79:       {/* Data Management */}
+ 80:       <div className="setting-group">
+ 81:         <label>Data Management</label>
+ 82:         <p className="help" style={{ marginBottom: 10, marginTop: 0 }}>
+ 83:           Your data is stored in IndexedDB (more durable than localStorage). Auto-backups are saved every 10 changes. Export regularly for extra safety.
+ 84:         </p>
+ 85:         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+ 86:           <button className="btn btn-secondary btn-sm" onClick={handleExport}>Export JSON</button>
+ 87:           <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+ 88:           <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()}>Import JSON</button>
+ 89:           <button className="btn btn-secondary btn-sm" onClick={handleBackup}>Backup Now</button>
+ 90:           <button className="btn btn-sm" style={{ background: 'none', border: '1px solid #c25e5e55', color: 'var(--danger)' }} onClick={handleClearAll}>
+ 91:             Clear All
+ 92:           </button>
+ 93:         </div>
+ 94:       </div>
+ 95: 
+ 96:       {/* About */}
+ 97:       <div className="setting-group">
+ 98:         <label>About</label>
+ 99:         <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
+100:           Grimoire v5.0<br />
+101:           React + IndexedDB. Card linking & knowledge graph.<br />
+102:           Build your personal reference library.
+103:         </div>
+104:       </div>
+105:     </div>
+106:   );
+107: }
+</file>
+
+<file path="src/components/Tags.jsx">
+ 1: import React, { useState } from 'react';
+ 2: import { useApp } from '../context';
+ 3: 
+ 4: export default function Tags() {
+ 5:   const { state, addTag, removeTag } = useApp();
+ 6:   const [input, setInput] = useState('');
+ 7: 
+ 8:   async function handleAdd() {
+ 9:     const name = input.trim();
+10:     if (name && !state.tags.includes(name)) {
+11:       await addTag(name);
+12:       setInput('');
+13:     }
+14:   }
+15: 
+16:   return (
+17:     <div className="section fade-in">
+18:       <h2 className="section-title">Tags</h2>
+19:       <p className="section-desc">
+20:         Create tags for characters, games, categories — anything you want to group cards by.
+21:       </p>
+22: 
+23:       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+24:         <input
+25:           type="text"
+26:           placeholder="New tag..."
+27:           value={input}
+28:           style={{ flex: 1 }}
+29:           onChange={(e) => setInput(e.target.value)}
+30:           onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+31:         />
+32:         <button className="btn btn-primary" onClick={handleAdd}>Add</button>
+33:       </div>
+34: 
+35:       {state.tags.length === 0 ? (
+36:         <div className="empty-state">
+37:           <div className="icon">🏷</div>
+38:           <div className="sub">No tags yet. Add one above!</div>
+39:         </div>
+40:       ) : (
+41:         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+42:           {state.tags.map((name) => {
+43:             const cnt = state.cards.filter((c) => (c.tags || []).includes(name)).length;
+44:             return (
+45:               <div key={name} style={{
+46:                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+47:                 background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px',
+48:               }}>
+49:                 <div>
+50:                   <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--text)' }}>{name}</div>
+51:                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{cnt} card{cnt !== 1 ? 's' : ''}</div>
+52:                 </div>
+53:                 <button
+54:                   style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 20, cursor: 'pointer', padding: '4px 8px' }}
+55:                   onClick={() => { if (confirm(`Remove "${name}"?`)) removeTag(name); }}
+56:                 >×</button>
+57:               </div>
+58:             );
+59:           })}
+60:         </div>
+61:       )}
+62:     </div>
+63:   );
+64: }
+</file>
+
+<file path="src/linking.js">
+  1: // ── Link markup format: [[cardId|display text]] ──
+  2: 
+  3: const LINK_REGEX = /\[\[([^|\]]+)\|([^\]]+)\]\]/g;
+  4: 
+  5: /**
+  6:  * Parse a text string and extract all links
+  7:  * Returns array of { cardId, displayText, start, end }
+  8:  */
+  9: export function parseLinks(text) {
+ 10:   if (!text) return [];
+ 11:   const links = [];
+ 12:   let match;
+ 13:   const regex = new RegExp(LINK_REGEX.source, 'g');
+ 14:   while ((match = regex.exec(text)) !== null) {
+ 15:     links.push({
+ 16:       cardId: match[1],
+ 17:       displayText: match[2],
+ 18:       start: match.index,
+ 19:       end: match.index + match[0].length,
+ 20:       raw: match[0],
+ 21:     });
+ 22:   }
+ 23:   return links;
+ 24: }
+ 25: 
+ 26: /**
+ 27:  * Split text into segments of plain text and links for rendering
+ 28:  * Returns array of { type: 'text'|'link', content, cardId?, displayText? }
+ 29:  */
+ 30: export function segmentText(text) {
+ 31:   if (!text) return [];
+ 32:   const segments = [];
+ 33:   let lastIndex = 0;
+ 34:   const regex = new RegExp(LINK_REGEX.source, 'g');
+ 35:   let match;
+ 36: 
+ 37:   while ((match = regex.exec(text)) !== null) {
+ 38:     // Plain text before this link
+ 39:     if (match.index > lastIndex) {
+ 40:       segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+ 41:     }
+ 42:     segments.push({
+ 43:       type: 'link',
+ 44:       content: match[2],
+ 45:       cardId: match[1],
+ 46:       displayText: match[2],
+ 47:     });
+ 48:     lastIndex = match.index + match[0].length;
+ 49:   }
+ 50: 
+ 51:   // Trailing text
+ 52:   if (lastIndex < text.length) {
+ 53:     segments.push({ type: 'text', content: text.slice(lastIndex) });
+ 54:   }
+ 55: 
+ 56:   return segments;
+ 57: }
+ 58: 
+ 59: /**
+ 60:  * Insert a link into text at the given range
+ 61:  */
+ 62: export function insertLink(text, start, end, cardId, displayText) {
+ 63:   const before = text.slice(0, start);
+ 64:   const after = text.slice(end);
+ 65:   return before + `[[${cardId}|${displayText}]]` + after;
+ 66: }
+ 67: 
+ 68: /**
+ 69:  * Remove a link from text, keeping the display text
+ 70:  */
+ 71: export function removeLink(text, cardId) {
+ 72:   return text.replace(new RegExp(`\\[\\[${escapeRegex(cardId)}\\|([^\\]]+)\\]\\]`, 'g'), '$1');
+ 73: }
+ 74: 
+ 75: /**
+ 76:  * Get plain text with all link markup stripped
+ 77:  */
+ 78: export function stripLinks(text) {
+ 79:   if (!text) return '';
+ 80:   return text.replace(LINK_REGEX, '$2');
+ 81: }
+ 82: 
+ 83: /**
+ 84:  * Compute reverse links: which cards link TO this card
+ 85:  * Returns array of { cardId, cardName, sectionName }
+ 86:  */
+ 87: export function computeReverseLinks(targetCardId, allCards) {
+ 88:   const refs = [];
+ 89:   for (const card of allCards) {
+ 90:     if (card.id === targetCardId) continue;
+ 91:     for (const sec of card.sections || []) {
+ 92:       const text = sec.content || '';
+ 93:       const kvText = sec.keyValues ? Object.values(sec.keyValues).join(' ') : '';
+ 94:       const combined = text + ' ' + kvText;
+ 95:       const links = parseLinks(combined);
+ 96:       if (links.some((l) => l.cardId === targetCardId)) {
+ 97:         refs.push({ cardId: card.id, cardName: card.name, sectionName: sec.name });
+ 98:       }
+ 99:     }
+100:   }
+101:   return refs;
+102: }
+103: 
+104: /**
+105:  * Get all card IDs referenced from a card's sections
+106:  */
+107: export function getOutgoingLinks(card) {
+108:   const ids = new Set();
+109:   for (const sec of card.sections || []) {
+110:     const text = sec.content || '';
+111:     const kvText = sec.keyValues ? Object.values(sec.keyValues).join(' ') : '';
+112:     for (const link of parseLinks(text + ' ' + kvText)) {
+113:       ids.add(link.cardId);
+114:     }
+115:   }
+116:   return [...ids];
+117: }
+118: 
+119: function escapeRegex(str) {
+120:   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+121: }
+</file>
+
+<file path="src/main.jsx">
+ 1: import React from 'react';
+ 2: import ReactDOM from 'react-dom/client';
+ 3: import App from './App';
+ 4: import './App.css';
+ 5: 
+ 6: ReactDOM.createRoot(document.getElementById('root')).render(
+ 7:   <React.StrictMode>
+ 8:     <App />
+ 9:   </React.StrictMode>
+10: );
+</file>
+
+<file path="src/qa-checklists.json">
+ 1: {
+ 2:   "checklists": [
+ 3:     {
+ 4:       "id": "profile-editing-2026-04-14",
+ 5:       "featureName": "Profile Editing & Prompt Builder",
+ 6:       "implementedDate": "2026-04-14",
+ 7:       "summary": "Migrated profiles from sections/scanInstructions model to fields/additionalInstructions. ProfileEditor now shows a label-only field editor with ▲/▼ reorder and delete. api.js buildPrompt uses field labels.",
+ 8:       "deviations": "Drag-to-reorder replaced with ▲/▼ buttons. key auto-derived from label. Fields carry no explicit type — Claude infers text vs key-value from context.",
+ 9:       "items": [
+10:         { "id": "1", "text": "Open the D&D 5e profile → fields show (Name, Level, etc.) not old sections" },
+11:         { "id": "2", "text": "Add a new field, reorder with ▲/▼, delete one → changes save" },
+12:         { "id": "3", "text": "Type in Additional Instructions → assembled prompt preview updates live" },
+13:         { "id": "4", "text": "Toggle \"Use custom prompt\" on → freeform textarea appears, assembled preview hidden" },
+14:         { "id": "5", "text": "Toggle it back off → fields and instructions still intact" },
+15:         { "id": "6", "text": "Scan a card using the edited profile → card comes back with expected fields" }
+16:       ]
+17:     },
+18:     {
+19:       "id": "qa-checklist-tab-2026-04-16",
+20:       "featureName": "QA Checklist Tab",
+21:       "implementedDate": "2026-04-16",
+22:       "summary": "New QA tab in the main nav. Reads checklists from qa-checklists.json, persists check/note state in IndexedDB qaState table. Supports per-item notes, general notes, clipboard export, and reset with confirmation.",
+23:       "deviations": "",
+24:       "items": [
+25:         { "id": "1", "text": "QA tab appears in the nav bar with a clipboard/checkmark icon" },
+26:         { "id": "2", "text": "Profile Editing checklist card shows with feature name, date, and \"0/6 checked\" progress" },
+27:         { "id": "3", "text": "Tap checklist card → expands to show all items with checkboxes" },
+28:         { "id": "4", "text": "Check off an item → progress updates, state persists after closing and reopening the tab" },
+29:         { "id": "5", "text": "Tap note icon on an item → textarea expands below, type a note → saves" },
+30:         { "id": "6", "text": "Type in General Notes textarea → saves" },
+31:         { "id": "7", "text": "Tap \"Export Report\" → markdown copied to clipboard (paste somewhere to verify format)" },
+32:         { "id": "8", "text": "Tap \"Reset Checklist\" → confirmation dialog → clears all checks and notes" }
+33:       ]
+34:     }
+35:   ]
+36: }
+</file>
+
+<file path=".gitignore">
+1: node_modules/
+2: dist/
+3: .claude/
+</file>
+
+<file path="package.json">
+ 1: {
+ 2:   "name": "grimoire",
+ 3:   "private": true,
+ 4:   "version": "5.0.0",
+ 5:   "type": "module",
+ 6:   "scripts": {
+ 7:     "dev": "vite",
+ 8:     "build": "vite build",
+ 9:     "preview": "vite preview",
+10:     "deploy": "vite build && gh-pages -d dist",
+11:     "context": "repomix --include-logs --include-logs-count 30"
+12:   },
+13:   "dependencies": {
+14:     "dexie": "^4.0.11",
+15:     "react": "^18.3.1",
+16:     "react-dom": "^18.3.1"
+17:   },
+18:   "devDependencies": {
+19:     "@types/react": "^18.3.12",
+20:     "@types/react-dom": "^18.3.1",
+21:     "@vitejs/plugin-react": "^4.3.4",
+22:     "gh-pages": "^6.3.0",
+23:     "repomix": "^1.14.0",
+24:     "vite": "^6.0.0",
+25:     "vite-plugin-pwa": "^0.21.1"
+26:   }
+27: }
+</file>
+
+<file path="vite.config.js">
+ 1: import { defineConfig } from 'vite';
+ 2: import react from '@vitejs/plugin-react';
+ 3: import { VitePWA } from 'vite-plugin-pwa';
+ 4: 
+ 5: export default defineConfig({
+ 6:   base: '/grimoire/',
+ 7:   server: { host: true },
+ 8:   plugins: [
+ 9:     react(),
+10:     VitePWA({
+11:       registerType: 'autoUpdate',
+12:       manifest: {
+13:         name: 'Grimoire',
+14:         short_name: 'Grimoire',
+15:         description: 'Personal reference card wiki',
+16:         theme_color: '#1a1714',
+17:         background_color: '#1a1714',
+18:         display: 'standalone',
+19:         start_url: '/grimoire/',
+20:         icons: [
+21:           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+22:           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+23:         ],
+24:       },
+25:     }),
+26:   ],
+27: });
+</file>
+
+<file path="src/components/CropOverlay.jsx">
+  1: import React, { useRef, useEffect, useCallback, useState } from 'react';
+  2: import { createPortal } from 'react-dom';
+  3: 
+  4: const GOLD = '#c29a3e';
+  5: const GOLD_FILL = 'rgba(194,154,62,0.3)';
+  6: const MIN_RECT = 20;
+  7: const BRACKET_MAX_ARM = 18;
+  8: const X_R = 10; // ✕ button hit radius
+  9: 
+ 10: function getXBtnCenter(r) {
+ 11:   return { cx: r.x + r.width - X_R - 2, cy: r.y + X_R + 2 };
+ 12: }
+ 13: 
+ 14: function drawCornerBrackets(ctx, x, y, w, h) {
+ 15:   const arm = Math.max(6, Math.min(BRACKET_MAX_ARM, w * 0.25, h * 0.25));
+ 16:   ctx.strokeStyle = GOLD;
+ 17:   ctx.lineWidth = 2.5;
+ 18:   ctx.lineCap = 'square';
+ 19:   ctx.beginPath();
+ 20:   ctx.moveTo(x, y + arm);       ctx.lineTo(x, y);         ctx.lineTo(x + arm, y);
+ 21:   ctx.moveTo(x + w - arm, y);   ctx.lineTo(x + w, y);     ctx.lineTo(x + w, y + arm);
+ 22:   ctx.moveTo(x, y + h - arm);   ctx.lineTo(x, y + h);     ctx.lineTo(x + arm, y + h);
+ 23:   ctx.moveTo(x + w - arm, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - arm);
+ 24:   ctx.stroke();
+ 25: }
+ 26: 
+ 27: function drawXBtn(ctx, r) {
+ 28:   const { cx, cy } = getXBtnCenter(r);
+ 29:   ctx.fillStyle = 'rgba(20,14,8,0.88)';
+ 30:   ctx.beginPath();
+ 31:   ctx.arc(cx, cy, X_R, 0, Math.PI * 2);
+ 32:   ctx.fill();
+ 33:   ctx.strokeStyle = GOLD;
+ 34:   ctx.lineWidth = 1.5;
+ 35:   ctx.stroke();
+ 36:   const s = 4;
+ 37:   ctx.strokeStyle = '#fff';
+ 38:   ctx.lineWidth = 1.5;
+ 39:   ctx.lineCap = 'round';
+ 40:   ctx.beginPath();
+ 41:   ctx.moveTo(cx - s, cy - s); ctx.lineTo(cx + s, cy + s);
+ 42:   ctx.moveTo(cx + s, cy - s); ctx.lineTo(cx - s, cy + s);
+ 43:   ctx.stroke();
+ 44: }
+ 45: 
+ 46: export default function CropOverlay({ imgDataUrl, onConfirm, onCancel }) {
+ 47:   const canvasRef = useRef(null);
+ 48:   const imgRef = useRef(new Image());
+ 49:   const stateRef = useRef({ dW: 0, dH: 0, drawing: false, startX: 0, startY: 0 });
+ 50:   const currentRectRef = useRef(null); // in-progress draft while dragging
+ 51:   const regionsRef = useRef([]);       // mirror of regions state for use in event handlers
+ 52: 
+ 53:   const [regions, setRegions] = useState([]);
+ 54:   const [fullPage, setFullPage] = useState(true);
+ 55: 
+ 56:   useEffect(() => { regionsRef.current = regions; }, [regions]);
+ 57: 
+ 58:   const draw = useCallback((draftRect = null) => {
+ 59:     const canvas = canvasRef.current;
+ 60:     if (!canvas) return;
+ 61:     const ctx = canvas.getContext('2d');
+ 62:     const { dW, dH } = stateRef.current;
+ 63:     ctx.clearRect(0, 0, dW, dH);
+ 64:     ctx.drawImage(imgRef.current, 0, 0, dW, dH);
+ 65: 
+ 66:     const all = draftRect ? [...regionsRef.current, draftRect] : regionsRef.current;
+ 67:     for (const r of all) {
+ 68:       ctx.fillStyle = GOLD_FILL;
+ 69:       ctx.fillRect(r.x, r.y, r.width, r.height);
+ 70:       drawCornerBrackets(ctx, r.x, r.y, r.width, r.height);
+ 71:       if (r !== draftRect) drawXBtn(ctx, r);
+ 72:     }
+ 73:   }, []);
+ 74: 
+ 75:   useEffect(() => {
+ 76:     const img = imgRef.current;
+ 77:     img.onload = () => {
+ 78:       const maxW = window.innerWidth;
+ 79:       const maxH = window.innerHeight - 110;
+ 80:       const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+ 81:       const dW = Math.round(img.naturalWidth * scale);
+ 82:       const dH = Math.round(img.naturalHeight * scale);
+ 83:       stateRef.current.dW = dW;
+ 84:       stateRef.current.dH = dH;
+ 85:       const canvas = canvasRef.current;
+ 86:       if (canvas) {
+ 87:         canvas.width = dW;
+ 88:         canvas.height = dH;
+ 89:         canvas.style.width = dW + 'px';
+ 90:         canvas.style.height = dH + 'px';
+ 91:       }
+ 92:       draw();
+ 93:     };
+ 94:     img.src = imgDataUrl;
+ 95:   }, [imgDataUrl, draw]);
+ 96: 
+ 97:   useEffect(() => {
+ 98:     draw(currentRectRef.current);
+ 99:   }, [regions, draw]);
+100: 
+101:   function getPosOnCanvas(e) {
+102:     const r = canvasRef.current.getBoundingClientRect();
+103:     return {
+104:       x: Math.max(0, Math.min(e.clientX - r.left, stateRef.current.dW)),
+105:       y: Math.max(0, Math.min(e.clientY - r.top, stateRef.current.dH)),
+106:     };
+107:   }
+108: 
+109:   function hitTestXBtn(p) {
+110:     for (const r of regionsRef.current) {
+111:       const { cx, cy } = getXBtnCenter(r);
+112:       const dx = p.x - cx, dy = p.y - cy;
+113:       if (dx * dx + dy * dy <= (X_R + 4) * (X_R + 4)) return r.id;
+114:     }
+115:     return null;
+116:   }
+117: 
+118:   function handlePointerDown(e) {
+119:     const canvas = canvasRef.current;
+120:     const r = canvas.getBoundingClientRect();
+121:     if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+122: 
+123:     const p = getPosOnCanvas(e);
+124:     const hitId = hitTestXBtn(p);
+125:     if (hitId) {
+126:       setRegions((prev) => prev.filter((r) => r.id !== hitId));
+127:       return;
+128:     }
+129: 
+130:     e.currentTarget.setPointerCapture(e.pointerId);
+131:     stateRef.current.startX = p.x;
+132:     stateRef.current.startY = p.y;
+133:     stateRef.current.drawing = true;
+134:     currentRectRef.current = null;
+135:   }
+136: 
+137:   function handlePointerMove(e) {
+138:     if (!stateRef.current.drawing) return;
+139:     const p = getPosOnCanvas(e);
+140:     const { startX, startY } = stateRef.current;
+141:     const x = Math.min(startX, p.x);
+142:     const y = Math.min(startY, p.y);
+143:     const width = Math.abs(p.x - startX);
+144:     const height = Math.abs(p.y - startY);
+145:     if (width > 5 && height > 5) {
+146:       currentRectRef.current = { id: '__draft', x, y, width, height };
+147:       draw(currentRectRef.current);
+148:     }
+149:   }
+150: 
+151:   function handlePointerUp() {
+152:     if (!stateRef.current.drawing) return;
+153:     stateRef.current.drawing = false;
+154:     const draft = currentRectRef.current;
+155:     currentRectRef.current = null;
+156:     if (draft && draft.width >= MIN_RECT && draft.height >= MIN_RECT) {
+157:       const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+158:       setRegions((prev) => [...prev, { id, x: draft.x, y: draft.y, width: draft.width, height: draft.height }]);
+159:     } else {
+160:       draw();
+161:     }
+162:   }
+163: 
+164:   function handleConfirm() {
+165:     if (regions.length === 0) return;
+166:     const img = imgRef.current;
+167:     const { dW, dH } = stateRef.current;
+168:     const scaleX = img.naturalWidth / dW;
+169:     const scaleY = img.naturalHeight / dH;
+170: 
+171:     let images;
+172:     if (fullPage) {
+173:       // Bake overlays onto full-size offscreen canvas
+174:       const off = document.createElement('canvas');
+175:       off.width = img.naturalWidth;
+176:       off.height = img.naturalHeight;
+177:       const ctx = off.getContext('2d');
+178:       ctx.drawImage(img, 0, 0);
+179:       for (const r of regions) {
+180:         const rx = r.x * scaleX, ry = r.y * scaleY;
+181:         const rw = r.width * scaleX, rh = r.height * scaleY;
+182:         ctx.fillStyle = GOLD_FILL;
+183:         ctx.fillRect(rx, ry, rw, rh);
+184:         drawCornerBrackets(ctx, rx, ry, rw, rh);
+185:       }
+186:       images = [{ base64: off.toDataURL('image/jpeg', 0.92).split(',')[1], mediaType: 'image/jpeg' }];
+187:     } else {
+188:       images = regions.map((r) => {
+189:         const off = document.createElement('canvas');
+190:         off.width = Math.round(r.width * scaleX);
+191:         off.height = Math.round(r.height * scaleY);
+192:         off.getContext('2d').drawImage(
+193:           img,
+194:           Math.round(r.x * scaleX), Math.round(r.y * scaleY), off.width, off.height,
+195:           0, 0, off.width, off.height,
+196:         );
+197:         return { base64: off.toDataURL('image/jpeg', 0.92).split(',')[1], mediaType: 'image/jpeg' };
+198:       });
+199:     }
+200: 
+201:     onConfirm(images, fullPage);
+202:   }
+203: 
+204:   const scanLabel = regions.length === 0 ? 'Scan Regions'
+205:     : regions.length === 1 ? 'Scan 1 Region'
+206:     : `Scan ${regions.length} Regions`;
+207: 
+208:   return createPortal(
+209:     <div
+210:       className="crop-overlay"
+211:       style={{ touchAction: 'none' }}
+212:       onPointerDown={handlePointerDown}
+213:       onPointerMove={handlePointerMove}
+214:       onPointerUp={handlePointerUp}
+215:     >
+216:       <div className="crop-toolbar">
+217:         <button className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
+218:         <span style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>Select Area</span>
+219:         <button
+220:           className={'btn btn-sm ' + (fullPage ? 'btn-primary' : 'btn-secondary')}
+221:           onClick={() => setFullPage((v) => !v)}
+222:           style={{ minWidth: 84 }}
+223:         >
+224:           {fullPage ? 'Full Page' : 'Crop Only'}
+225:         </button>
+226:       </div>
+227:       <div className="crop-canvas-wrap">
+228:         <canvas ref={canvasRef} style={{ display: 'block' }} />
+229:         {regions.length === 0 && (
+230:           <div className="crop-hint">Draw rectangles to highlight regions</div>
+231:         )}
+232:       </div>
+233:       <div style={{ padding: '12px 16px', background: 'var(--surface)', flexShrink: 0 }}>
+234:         <button
+235:           className="btn btn-primary btn-block"
+236:           disabled={regions.length === 0}
+237:           onClick={handleConfirm}
+238:         >
+239:           {scanLabel}
+240:         </button>
+241:       </div>
+242:     </div>,
+243:     document.body
+244:   );
+245: }
+</file>
+
+<file path="src/components/Library.jsx">
+  1: import React, { useState } from 'react';
+  2: import { useApp } from '../context';
+  3: import { stripLinks } from '../linking';
+  4: 
+  5: const COL_ICONS = { 1: '▤', 2: '▦', 3: '⊞' };
+  6: 
+  7: export default function Library() {
+  8:   const { state, dispatch, navigateToCard } = useApp();
+  9:   const { cards, profiles, tags, filterProfile, filterTag, searchQuery } = state;
+ 10:   const [cols, setCols] = useState(1);
+ 11: 
+ 12:   const usedProfiles = [...new Set(cards.map((c) => c.profileId).filter(Boolean))];
+ 13: 
+ 14:   const filtered = cards.filter((c) => {
+ 15:     if (filterProfile === '_none' && c.profileId) return false;
+ 16:     if (filterProfile !== 'all' && filterProfile !== '_none' && c.profileId !== filterProfile) return false;
+ 17:     if (filterTag !== 'all' && !(c.tags || []).includes(filterTag)) return false;
+ 18:     if (searchQuery) {
+ 19:       const q = searchQuery.toLowerCase();
+ 20:       const nameMatch = c.name?.toLowerCase().includes(q);
+ 21:       const textMatch = (c.sections || []).some((s) => {
+ 22:         const content = stripLinks(s.content || '');
+ 23:         const kvText = s.keyValues ? Object.values(s.keyValues).join(' ') : '';
+ 24:         return content.toLowerCase().includes(q) || kvText.toLowerCase().includes(q);
+ 25:       });
+ 26:       if (!nameMatch && !textMatch) return false;
+ 27:     }
+ 28:     return true;
+ 29:   });
+ 30: 
+ 31:   function getProfile(id) {
+ 32:     return profiles.find((p) => p.id === id);
+ 33:   }
+ 34: 
+ 35:   function getPreviewMeta(card) {
+ 36:     const s = (card.sections || []).find((s) => s.type === 'key-value' && s.keyValues);
+ 37:     if (!s) return '';
+ 38:     return Object.entries(s.keyValues).slice(0, 3).map(([k, v]) => `${k}: ${v}`).join(' · ');
+ 39:   }
+ 40: 
+ 41:   function getPreviewText(card) {
+ 42:     const s = (card.sections || []).find((s) => s.type === 'text' && s.content);
+ 43:     return s ? stripLinks(s.content) : '';
+ 44:   }
+ 45: 
+ 46:   function cycleView() {
+ 47:     setCols((c) => (c % 3) + 1);
+ 48:   }
+ 49: 
+ 50:   return (
+ 51:     <div className="section fade-in">
+ 52:       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+ 53:         <input
+ 54:           type="search"
+ 55:           placeholder="Search cards..."
+ 56:           value={searchQuery}
+ 57:           style={{ flex: 1, marginTop: 0 }}
+ 58:           onChange={(e) => dispatch({ type: 'SET_SEARCH', value: e.target.value })}
+ 59:         />
+ 60:         <button
+ 61:           className="btn btn-secondary btn-sm"
+ 62:           style={{ flexShrink: 0, fontSize: 16, padding: '6px 10px' }}
+ 63:           title={`Switch to ${cols === 3 ? '1' : cols + 1}-column view`}
+ 64:           onClick={cycleView}
+ 65:         >{COL_ICONS[cols]}</button>
+ 66:       </div>
+ 67: 
+ 68:       {/* Profile filter pills */}
+ 69:       <div className="pills" style={{ marginTop: 10 }}>
+ 70:         <button
+ 71:           className={'pill' + (filterProfile === 'all' ? ' active' : '')}
+ 72:           onClick={() => dispatch({ type: 'SET_FILTER_PROFILE', value: 'all' })}
+ 73:         >All</button>
+ 74:         {profiles.map((p) =>
+ 75:           (usedProfiles.includes(p.id) || filterProfile === p.id) ? (
+ 76:             <button
+ 77:               key={p.id}
+ 78:               className={'pill' + (filterProfile === p.id ? ' active' : '')}
+ 79:               onClick={() => dispatch({ type: 'SET_FILTER_PROFILE', value: p.id })}
+ 80:             >{p.icon} {p.name}</button>
+ 81:           ) : null
+ 82:         )}
+ 83:         {cards.some((c) => !c.profileId) && (
+ 84:           <button
+ 85:             className={'pill' + (filterProfile === '_none' ? ' active' : '')}
+ 86:             onClick={() => dispatch({ type: 'SET_FILTER_PROFILE', value: '_none' })}
+ 87:           >• Unlinked</button>
+ 88:         )}
+ 89:       </div>
+ 90: 
+ 91:       {/* Tag filter pills */}
+ 92:       {tags.length > 0 && (
+ 93:         <div className="pills" style={{ marginTop: 6 }}>
+ 94:           <button
+ 95:             className={'pill' + (filterTag === 'all' ? ' active' : '')}
+ 96:             onClick={() => dispatch({ type: 'SET_FILTER_TAG', value: 'all' })}
+ 97:           >All Tags</button>
+ 98:           {tags.map((name) => (
+ 99:             <button
+100:               key={name}
+101:               className={'pill' + (filterTag === name ? ' active' : '')}
+102:               onClick={() => dispatch({ type: 'SET_FILTER_TAG', value: name })}
+103:             >🏷 {name}</button>
+104:           ))}
+105:         </div>
+106:       )}
+107: 
+108:       {/* Card grid/list */}
+109:       {filtered.length === 0 ? (
+110:         <div className="empty-state">
+111:           <div className="icon">📖</div>
+112:           <div className="title">{cards.length === 0 ? 'Your grimoire is empty' : 'No cards match'}</div>
+113:           <div className="sub">{cards.length === 0 ? 'Scan a page to get started' : 'Try adjusting your filters'}</div>
+114:         </div>
+115:       ) : cols === 1 ? (
+116:         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+117:           {filtered.map((card) => {
+118:             const profile = getProfile(card.profileId);
+119:             const color = profile?.color || '#7d8590';
+120:             const meta = getPreviewMeta(card);
+121:             const desc = getPreviewText(card);
+122:             return (
+123:               <button
+124:                 key={card.id}
+125:                 className="card-preview"
+126:                 style={{ borderLeft: `3px solid ${color}` }}
+127:                 onClick={() => navigateToCard(card.id, true)}
+128:               >
+129:                 <div className="card-preview-header">
+130:                   <h3>
+131:                     {card.name}
+132:                     {!card.summary && <span title="No summary — re-scan to generate" style={{ marginLeft: 5, fontSize: 8, color: 'var(--text-dim, #555)', verticalAlign: 'middle' }}>●</span>}
+133:                   </h3>
+134:                   {profile && (
+135:                     <span className="type-badge sm" style={{ background: color + '22', color, border: `1px solid ${color}55` }}>
+136:                       {profile.icon} {profile.name}
+137:                     </span>
+138:                   )}
+139:                 </div>
+140:                 {meta && <div className="meta">{meta}</div>}
+141:                 {desc && <div className="desc">{desc}</div>}
+142:                 {card.tags?.length > 0 && (
+143:                   <div className="tags">
+144:                     {card.tags.map((t) => <span key={t} className="char-tag">{t}</span>)}
+145:                   </div>
+146:                 )}
+147:               </button>
+148:             );
+149:           })}
+150:         </div>
+151:       ) : cols === 2 ? (
+152:         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 14 }}>
+153:           {filtered.map((card) => {
+154:             const profile = getProfile(card.profileId);
+155:             const color = profile?.color || '#7d8590';
+156:             return (
+157:               <button
+158:                 key={card.id}
+159:                 className="card-preview"
+160:                 style={{ borderLeft: `3px solid ${color}`, padding: '8px 10px' }}
+161:                 onClick={() => navigateToCard(card.id, true)}
+162:               >
+163:                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3, textAlign: 'left' }}>
+164:                   {card.name}
+165:                 </div>
+166:                 {profile && (
+167:                   <div style={{ fontSize: 10, color, marginTop: 3 }}>{profile.icon} {profile.name}</div>
+168:                 )}
+169:               </button>
+170:             );
+171:           })}
+172:         </div>
+173:       ) : (
+174:         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginTop: 14 }}>
+175:           {filtered.map((card) => {
+176:             const profile = getProfile(card.profileId);
+177:             const color = profile?.color || '#7d8590';
+178:             const text = getPreviewText(card);
+179:             return (
+180:               <button
+181:                 key={card.id}
+182:                 className="card-preview"
+183:                 style={{ borderLeft: `3px solid ${color}`, padding: '7px 8px' }}
+184:                 onClick={() => navigateToCard(card.id, true)}
+185:               >
+186:                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3, textAlign: 'left', marginBottom: text ? 3 : 0 }}>
+187:                   {card.name}
+188:                 </div>
+189:                 {text && (
+190:                   <div style={{
+191:                     fontSize: 10, color: 'var(--text-mid)', lineHeight: 1.4, textAlign: 'left',
+192:                     display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+193:                   }}>{text}</div>
+194:                 )}
+195:               </button>
+196:             );
+197:           })}
+198:         </div>
+199:       )}
+200:     </div>
+201:   );
+202: }
+</file>
+
+<file path="src/components/ProfileEditor.jsx">
+  1: import React, { useState, useEffect } from 'react';
+  2: import { useApp } from '../context';
+  3: import { PROFILE_COLORS, DND_PROFILE, genId } from '../db';
+  4: import { buildPrompt } from '../api';
+  5: 
+  6: function labelToKey(label) {
+  7:   return label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  8: }
+  9: 
+ 10: export default function ProfileEditor() {
+ 11:   const { state, dispatch, saveProfile, addProfile, removeProfile } = useApp();
+ 12:   const profile = state.profiles.find((p) => p.id === state.editingProfileId);
+ 13:   const [draft, setDraft] = useState(null);
+ 14: 
+ 15:   useEffect(() => {
+ 16:     if (profile) {
+ 17:       setDraft(JSON.parse(JSON.stringify(profile)));
+ 18:     } else {
+ 19:       dispatch({ type: 'STOP_EDITING_PROFILE' });
+ 20:     }
+ 21:   }, [profile?.id]);
+ 22: 
+ 23:   // Auto-save — must be before any early returns to satisfy Rules of Hooks
+ 24:   useEffect(() => {
+ 25:     if (!draft || !profile) return;
+ 26:     const timer = setTimeout(() => saveProfile(draft), 500);
+ 27:     return () => clearTimeout(timer);
+ 28:   }, [draft]);
+ 29: 
+ 30:   if (!profile || !draft) return null;
+ 31: 
+ 32:   function update(fn) {
+ 33:     setDraft((prev) => {
+ 34:       const next = JSON.parse(JSON.stringify(prev));
+ 35:       fn(next);
+ 36:       return next;
+ 37:     });
+ 38:   }
+ 39: 
+ 40:   async function duplicate() {
+ 41:     const dup = { ...JSON.parse(JSON.stringify(draft)), id: genId(), name: draft.name + ' (copy)', builtIn: false };
+ 42:     const np = await addProfile(dup);
+ 43:     dispatch({ type: 'EDIT_PROFILE', id: np.id });
+ 44:   }
+ 45: 
+ 46:   const fields = draft.fields || [];
+ 47: 
+ 48:   return (
+ 49:     <div className="section fade-in">
+ 50:       <button className="back-btn" onClick={() => dispatch({ type: 'STOP_EDITING_PROFILE' })}>← Back</button>
+ 51:       <h2 className="section-title">Edit Profile</h2>
+ 52: 
+ 53:       {/* Name & Icon */}
+ 54:       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+ 55:         <input
+ 56:           type="text"
+ 57:           value={draft.icon}
+ 58:           style={{ width: 50, textAlign: 'center', fontSize: 18 }}
+ 59:           onChange={(e) => update((d) => { d.icon = e.target.value; })}
+ 60:         />
+ 61:         <input
+ 62:           type="text"
+ 63:           value={draft.name}
+ 64:           placeholder="Profile name..."
+ 65:           style={{ flex: 1 }}
+ 66:           onChange={(e) => update((d) => { d.name = e.target.value; })}
+ 67:         />
+ 68:       </div>
+ 69: 
+ 70:       {/* Color */}
+ 71:       <div className="edit-field">
+ 72:         <label>Color</label>
+ 73:         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+ 74:           {PROFILE_COLORS.map((c) => (
+ 75:             <button
+ 76:               key={c}
+ 77:               style={{
+ 78:                 width: 30, height: 30, borderRadius: 6, background: c, cursor: 'pointer',
+ 79:                 border: draft.color === c ? '2px solid var(--text)' : '2px solid transparent',
+ 80:               }}
+ 81:               onClick={() => update((d) => { d.color = c; })}
+ 82:             />
+ 83:           ))}
+ 84:         </div>
+ 85:       </div>
+ 86: 
+ 87:       {/* Field Configurator */}
+ 88:       <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', margin: '16px 0 8px' }}>
+ 89:         Fields (scan order)
+ 90:       </label>
+ 91: 
+ 92:       {fields.map((field, i) => (
+ 93:         <div key={i} className="section-edit-row">
+ 94:           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+ 95:             {i > 0 && (
+ 96:               <button style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 10, padding: 0 }}
+ 97:                 onClick={() => update((d) => {
+ 98:                   [d.fields[i - 1], d.fields[i]] = [d.fields[i], d.fields[i - 1]];
+ 99:                 })}>▲</button>
+100:             )}
+101:             {i < fields.length - 1 && (
+102:               <button style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 10, padding: 0 }}
+103:                 onClick={() => update((d) => {
+104:                   [d.fields[i], d.fields[i + 1]] = [d.fields[i + 1], d.fields[i]];
+105:                 })}>▼</button>
+106:             )}
+107:           </div>
+108: 
+109:           <div className="section-edit-info">
+110:             <input
+111:               type="text"
+112:               value={field.label}
+113:               placeholder="Field name, e.g. Stats, Description..."
+114:               style={{ fontSize: 13, padding: '6px 8px', width: '100%' }}
+115:               onChange={(e) => update((d) => {
+116:                 d.fields[i].label = e.target.value;
+117:                 d.fields[i].key = labelToKey(e.target.value);
+118:               })}
+119:             />
+120:           </div>
+121: 
+122:           <button
+123:             style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 16, cursor: 'pointer', minWidth: 44, minHeight: 44 }}
+124:             onClick={() => update((d) => { d.fields.splice(i, 1); })}
+125:           >×</button>
+126:         </div>
+127:       ))}
+128: 
+129:       <button className="btn btn-secondary btn-sm" style={{ marginTop: 6 }}
+130:         onClick={() => update((d) => {
+131:           d.fields.push({ key: '', label: '' });
+132:         })}>+ Add Field</button>
+133: 
+134:       {/* Additional Instructions */}
+135:       <div className="edit-field" style={{ marginTop: 16 }}>
+136:         <label>Additional Instructions</label>
+137:         <textarea
+138:           rows={4}
+139:           value={draft.additionalInstructions || ''}
+140:           placeholder='Extra instructions appended to the assembled prompt. E.g.: "Prioritize practical gameplay tips over raw stat numbers."'
+141:           onChange={(e) => update((d) => { d.additionalInstructions = e.target.value; })}
+142:         />
+143:       </div>
+144: 
+145:       {/* Custom prompt toggle */}
+146:       <div className="edit-field" style={{ marginTop: 8 }}>
+147:         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+148:           <input
+149:             type="checkbox"
+150:             checked={!!draft.useCustomPrompt}
+151:             onChange={(e) => update((d) => { d.useCustomPrompt = e.target.checked; })}
+152:           />
+153:           Use custom prompt instead
+154:         </label>
+155:         <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+156:           Replaces the assembled prompt entirely. The fields above are preserved so you can toggle back.
+157:         </p>
+158:       </div>
+159: 
+160:       {draft.useCustomPrompt ? (
+161:         <div className="edit-field">
+162:           <label>Custom Prompt</label>
+163:           <textarea
+164:             rows={8}
+165:             value={draft.customPrompt || ''}
+166:             placeholder="Enter the full prompt to send to the API when scanning with this profile..."
+167:             onChange={(e) => update((d) => { d.customPrompt = e.target.value; })}
+168:           />
+169:         </div>
+170:       ) : (
+171:         <div className="edit-field">
+172:           <label>Assembled Prompt Preview</label>
+173:           <textarea
+174:             rows={7}
+175:             readOnly
+176:             value={buildPrompt(draft)}
+177:             style={{ opacity: 0.6, cursor: 'default', fontSize: 11, fontFamily: 'monospace', resize: 'none' }}
+178:           />
+179:           <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+180:             Read-only. This is the exact prompt sent to the API when scanning.
+181:           </p>
+182:         </div>
+183:       )}
+184: 
+185:       {/* Actions */}
+186:       <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+187:         <button className="btn btn-secondary" style={{ flex: 1 }} onClick={duplicate}>Duplicate</button>
+188:         {draft.builtIn ? (
+189:           <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
+190:             if (confirm('Revert to the default D&D 5e profile? All customisations will be lost.')) {
+191:               const reverted = JSON.parse(JSON.stringify(DND_PROFILE));
+192:               setDraft(reverted);
+193:               saveProfile(reverted);
+194:             }
+195:           }}>Revert to Default</button>
+196:         ) : (
+197:           <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => {
+198:             if (confirm(`Delete "${draft.name}"? Cards will keep their data but become unlinked.`)) {
+199:               removeProfile(draft.id);
+200:             }
+201:           }}>Delete</button>
+202:         )}
+203:       </div>
+204:     </div>
+205:   );
+206: }
+</file>
+
+<file path="src/components/Profiles.jsx">
+ 1: import React from 'react';
+ 2: import { useApp } from '../context';
+ 3: import { PROFILE_COLORS, genId } from '../db';
+ 4: 
+ 5: export default function Profiles() {
+ 6:   const { state, dispatch, addProfile } = useApp();
+ 7: 
+ 8:   async function createProfile() {
+ 9:     const np = await addProfile({
+10:       id: genId(),
+11:       name: 'New Profile',
+12:       icon: '📋',
+13:       color: PROFILE_COLORS[state.profiles.length % PROFILE_COLORS.length],
+14:       builtIn: false,
+15:       fields: [{ key: 'description', label: 'Description' }],
+16:       additionalInstructions: '',
+17:       useCustomPrompt: false,
+18:       customPrompt: '',
+19:     });
+20:     dispatch({ type: 'EDIT_PROFILE', id: np.id });
+21:   }
+22: 
+23:   return (
+24:     <div className="section fade-in">
+25:       <h2 className="section-title">Scan Profiles</h2>
+26:       <p className="section-desc">
+27:         Profiles control how scanned pages get parsed — what sections to extract and what to prioritize.
+28:       </p>
+29: 
+30:       <button className="btn btn-primary btn-block" style={{ marginBottom: 16 }} onClick={createProfile}>
+31:         + New Profile
+32:       </button>
+33: 
+34:       {state.profiles.length === 0 ? (
+35:         <div className="empty-state">
+36:           <div className="icon">📐</div>
+37:           <div className="title">No profiles yet</div>
+38:           <div className="sub">Create one to start scanning.</div>
+39:         </div>
+40:       ) : (
+41:         state.profiles.map((p) => {
+42:           const cnt = state.cards.filter((c) => c.profileId === p.id).length;
+43:           return (
+44:             <div
+45:               key={p.id}
+46:               className="profile-card"
+47:               onClick={() => dispatch({ type: 'EDIT_PROFILE', id: p.id })}
+48:             >
+49:               <div className="profile-card-header">
+50:                 <h3>{p.icon} {p.name}</h3>
+51:                 <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+52:                   {cnt} card{cnt !== 1 ? 's' : ''}{p.builtIn ? ' · Sample' : ''}
+53:                 </span>
+54:               </div>
+55:               <div className="profile-section-list">
+56:                 {(p.fields || []).map((f, i) => (
+57:                   <span key={i} className="profile-section-chip">{i + 1}. {f.label}</span>
+58:                 ))}
+59:               </div>
+60:             </div>
+61:           );
+62:         })
+63:       )}
+64:     </div>
+65:   );
+66: }
+</file>
+
+<file path="src/App.css">
+  1: :root {
+  2:   --font-display: 'Cinzel', serif;
+  3:   --font-body: 'Nunito Sans', -apple-system, sans-serif;
+  4:   --bg: #1a1714; --surface: #221f1a; --card-bg: #2a261f; --border: #3a352c;
+  5:   --text: #e8e0d4; --text-mid: #b5aa98; --text-dim: #7d7567;
+  6:   --accent: #c29a3e; --accent-glow: #c29a3e33;
+  7:   --highlight-bg: #2e291f; --tag-bg: #c29a3e22; --tag-text: #c29a3e; --danger: #c25e5e;
+  8: }
+  9: * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+ 10: html, body { height: 100%; }
+ 11: body { font-family: var(--font-body); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+ 12: body::before { content: ''; position: fixed; inset: 0; background: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 9999; }
+ 13: #app { max-width: 480px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; position: relative; }
+ 14: .header { padding: 14px 18px 10px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
+ 15: .header h1 { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: 1px; color: var(--text); }
+ 16: .header h1 span { color: var(--accent); }
+ 17: .content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: 80px; }
+ 18: .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; display: flex; background: var(--surface); border-top: 1px solid var(--border); z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0); }
+ 19: .nav-btn { flex: 1; padding: 10px 0 12px; background: none; border: none; cursor: pointer; text-align: center; transition: opacity 0.15s; opacity: 0.45; color: var(--text); }
+ 20: .nav-btn.active { opacity: 1; }
+ 21: .nav-btn .icon { font-size: 20px; }
+ 22: .nav-btn .label { font-size: 10px; font-weight: 700; margin-top: 2px; font-family: var(--font-body); letter-spacing: 0.3px; }
+ 23: .nav-btn.active .label { color: var(--accent); }
+ 24: .nav-btn:not(.active) .label { color: var(--text-dim); }
+ 25: input[type="text"], input[type="password"], input[type="search"], textarea, select { width: 100%; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; color: var(--text); font-family: var(--font-body); outline: none; transition: border-color 0.2s; }
+ 26: textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+ 27: select { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237d7567'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+ 28: input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+ 29: input::placeholder, textarea::placeholder { color: var(--text-dim); }
+ 30: .btn { padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font-body); border: none; transition: transform 0.1s, opacity 0.15s; }
+ 31: .btn:active { transform: scale(0.97); }
+ 32: .btn-primary { background: var(--accent); color: #fff; }
+ 33: .btn-secondary { background: var(--surface); color: var(--text-mid); border: 1px solid var(--border); }
+ 34: .btn-danger { background: none; border: 1px solid #c25e5e55; color: var(--danger); }
+ 35: .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+ 36: .btn-block { width: 100%; }
+ 37: .pills { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+ 38: .pills::-webkit-scrollbar { display: none; }
+ 39: .pill { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: var(--font-body); transition: all 0.15s; }
+ 40: .pill.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+ 41: .card-preview { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; text-align: left; cursor: pointer; width: 100%; transition: transform 0.1s; display: block; color: var(--text); }
+ 42: .card-preview:active { transform: scale(0.98); }
+ 43: .card-preview-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+ 44: .card-preview h3 { font-family: var(--font-display); font-size: 16px; color: var(--text); line-height: 1.2; }
+ 45: .card-preview .meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+ 46: .card-preview .desc { font-size: 12px; color: var(--text-mid); line-height: 1.4; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+ 47: .card-preview .tags { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+ 48: .type-badge { border-radius: 6px; padding: 2px 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0; }
+ 49: .type-badge.sm { padding: 1px 6px; font-size: 10px; }
+ 50: .char-tag { font-size: 10px; background: var(--tag-bg); color: var(--tag-text); border-radius: 4px; padding: 1px 6px; }
+ 51: .detail-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 4px; }
+ 52: .detail-card h2 { font-family: var(--font-display); font-size: 22px; color: var(--text); line-height: 1.2; }
+ 53: .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 13px; color: var(--text-mid); padding: 12px 0; }
+ 54: .stat-label { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+ 55: .scan-zone { width: 100%; padding: 48px 20px; background: var(--card-bg); border: 2px dashed var(--border); border-radius: 12px; cursor: pointer; text-align: center; font-family: var(--font-body); transition: border-color 0.2s; color: var(--text); }
+ 56: .scan-zone:hover { border-color: var(--accent); }
+ 57: @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.1); } }
+ 58: @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+ 59: .fade-in { animation: fadeIn 0.25s ease-out; }
+ 60: .empty-state { text-align: center; padding: 50px 20px; color: var(--text-dim); }
+ 61: .empty-state .icon { font-size: 32px; margin-bottom: 10px; }
+ 62: .empty-state .title { font-size: 14px; font-weight: 600; color: var(--text-mid); }
+ 63: .empty-state .sub { font-size: 12px; margin-top: 4px; }
+ 64: .setting-group { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+ 65: .setting-group label { font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; }
+ 66: .setting-group .help { font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.4; }
+ 67: .api-status { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-top: 8px; }
+ 68: .api-status.ok { background: #5ea66b22; color: #5ea66b; }
+ 69: .api-status.missing { background: #c25e5e22; color: #c25e5e; }
+ 70: .section { padding: 0 16px; }
+ 71: .section-title { font-family: var(--font-display); font-size: 20px; color: var(--text); margin: 16px 0 6px; }
+ 72: .section-desc { font-size: 13px; color: var(--text-dim); line-height: 1.4; margin-bottom: 16px; }
+ 73: .back-btn { background: none; border: none; color: var(--accent); font-size: 14px; padding: 12px 0; cursor: pointer; font-family: var(--font-body); }
+ 74: .edit-field { margin-bottom: 12px; }
+ 75: .edit-field label { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+ 76: .crop-overlay { position: fixed; inset: 0; z-index: 200; background: #000; display: flex; flex-direction: column; }
+ 77: .crop-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--surface); flex-shrink: 0; }
+ 78: .crop-canvas-wrap { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+ 79: .crop-canvas-wrap canvas { max-width: 100%; max-height: 100%; display: block; }
+ 80: .crop-hint { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: #000a; color: var(--text); font-size: 12px; padding: 6px 14px; border-radius: 20px; pointer-events: none; }
+ 81: .section-collapse { border-top: 1px solid var(--border); margin-top: 12px; }
+ 82: .section-collapse-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; cursor: pointer; user-select: none; }
+ 83: .section-collapse-header h4 { font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+ 84: .section-collapse-header .arrow { color: var(--text-dim); font-size: 12px; transition: transform 0.2s; }
+ 85: .section-collapse-header .arrow.open { transform: rotate(90deg); }
+ 86: .section-collapse-body { overflow: hidden; transition: max-height 0.25s ease, opacity 0.2s ease; }
+ 87: .section-collapse-body.collapsed { max-height: 0; opacity: 0; }
+ 88: .section-collapse-body.expanded { max-height: 2000px; opacity: 1; }
+ 89: .profile-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 10px; cursor: pointer; transition: transform 0.1s; }
+ 90: .profile-card:active { transform: scale(0.98); }
+ 91: .profile-card-header { display: flex; justify-content: space-between; align-items: center; }
+ 92: .profile-card h3 { font-family: var(--font-display); font-size: 16px; color: var(--text); }
+ 93: .profile-section-list { margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+ 94: .profile-section-chip { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--highlight-bg); color: var(--text-mid); border: 1px solid var(--border); }
+ 95: .section-edit-row { display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; }
+ 96: .section-edit-row .section-edit-info { flex: 1; }
+ 97: /* Linked terms */
+ 98: .linked-term { color: var(--accent); font-weight: 600; cursor: pointer; border-bottom: 1px dotted var(--accent); transition: opacity 0.15s; }
+ 99: .linked-term:hover { opacity: 0.8; }
+100: .linked-term[data-exists="false"] { color: var(--text-dim); border-bottom-color: var(--text-dim); }
+101: /* ── Chat Panel ── */
+102: .chat-panel-backdrop { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); }
+103: .chat-panel { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%); width: 100%; max-width: 480px; height: 90vh; background: var(--surface); border-radius: 16px 16px 0 0; display: flex; flex-direction: column; transition: transform 0.3s ease-out; z-index: 301; }
+104: .chat-panel.chat-panel-visible { transform: translateX(-50%) translateY(0); }
+105: .chat-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+106: .chat-panel-title { font-family: var(--font-display); font-size: 16px; color: var(--text); }
+107: .chat-panel-close { background: none; border: none; color: var(--text-dim); font-size: 22px; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+108: .chat-panel-thread { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 14px 8px; display: flex; flex-direction: column; gap: 10px; }
+109: .chat-bubble { max-width: 82%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
+110: .chat-bubble-user { background: var(--accent-glow); color: var(--text); border: 1px solid var(--accent); align-self: flex-end; border-bottom-right-radius: 4px; }
+111: .chat-bubble-assistant { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 4px; }
+112: .chat-bubble-error { background: #c25e5e18; color: var(--danger); border: 1px solid #c25e5e44; max-width: 100%; border-radius: 10px; }
+113: .chat-bubble-loading { opacity: 0.55; animation: pulse 1.5s ease-in-out infinite; }
+114: .chat-usage { font-size: 11px; color: var(--text-dim); padding-left: 4px; }
+115: .chat-panel-input-area { border-top: 1px solid var(--border); padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0)); flex-shrink: 0; }
+116: .chat-thumbs { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+117: .chat-thumb { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
+118: .chat-thumb img { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); display: block; }
+119: .chat-thumb-remove { position: absolute; top: -5px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: var(--danger); border: none; color: #fff; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+120: .chat-input-row { display: flex; gap: 8px; align-items: flex-end; }
+121: .chat-attach-btn { min-width: 44px; min-height: 44px; padding: 0 10px; font-size: 18px; flex-shrink: 0; }
+122: .chat-send-btn { min-width: 60px; min-height: 44px; flex-shrink: 0; }
+</file>
+
+<file path="src/App.jsx">
+ 1: import React from 'react';
+ 2: import { AppProvider, useApp } from './context';
+ 3: import Library from './components/Library';
+ 4: import CardDetail from './components/CardDetail';
+ 5: import Scan from './components/Scan';
+ 6: import Profiles from './components/Profiles';
+ 7: import ProfileEditor from './components/ProfileEditor';
+ 8: import Tags from './components/Tags';
+ 9: import Settings from './components/Settings';
+10: import QA from './components/QA';
+11: 
+12: const TABS = [
+13:   { key: 'library', icon: '📚', label: 'Library' },
+14:   { key: 'scan', icon: '📷', label: 'Scan' },
+15:   { key: 'profiles', icon: '📐', label: 'Profiles' },
+16:   { key: 'tags', icon: '🏷', label: 'Tags' },
+17:   { key: 'qa', icon: '📋', label: 'QA' },
+18:   { key: 'settings', icon: '⚙', label: 'Settings' },
+19: ];
+20: 
+21: function AppInner() {
+22:   const { state, dispatch } = useApp();
+23: 
+24:   if (state.loading) {
+25:     return (
+26:       <div id="app">
+27:         <div className="header"><h1><span>✦</span> Grimoire</h1></div>
+28:         <div className="content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+29:           <div className="empty-state">
+30:             <div className="icon" style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>✦</div>
+31:             <div className="title">Loading your grimoire...</div>
+32:           </div>
+33:         </div>
+34:       </div>
+35:     );
+36:   }
+37: 
+38:   function renderContent() {
+39:     switch (state.currentTab) {
+40:       case 'library':
+41:         return state.selectedCardId
+42:           ? <CardDetail />
+43:           : <Library />;
+44:       case 'scan':
+45:         return <Scan />;
+46:       case 'profiles':
+47:         return state.editingProfileId
+48:           ? <ProfileEditor />
+49:           : <Profiles />;
+50:       case 'tags':
+51:         return <Tags />;
+52:       case 'qa':
+53:         return <QA />;
+54:       case 'settings':
+55:         return <Settings />;
+56:       default:
+57:         return <Library />;
+58:     }
+59:   }
+60: 
+61:   return (
+62:     <div id="app">
+63:       <div className="header">
+64:         <h1><span>✦</span> Grimoire</h1>
+65:       </div>
+66:       <div className="content">
+67:         {renderContent()}
+68:       </div>
+69:       <nav className="nav">
+70:         {TABS.map((t) => (
+71:           <button
+72:             key={t.key}
+73:             className={'nav-btn' + (state.currentTab === t.key ? ' active' : '')}
+74:             onClick={() => dispatch({ type: 'SET_TAB', tab: t.key })}
+75:           >
+76:             <div className="icon">{t.icon}</div>
+77:             <div className="label">{t.label}</div>
+78:           </button>
+79:         ))}
+80:       </nav>
+81:     </div>
+82:   );
+83: }
+84: 
+85: export default function App() {
+86:   return (
+87:     <AppProvider>
+88:       <AppInner />
+89:     </AppProvider>
+90:   );
+91: }
+</file>
+
+<file path="src/context.jsx">
+  1: import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
+  2: import {
+  3:   getAllCards, putCard, deleteCard as dbDeleteCard,
+  4:   getAllProfiles, putProfile, deleteProfile as dbDeleteProfile,
+  5:   getAllTags, addTag as dbAddTag, removeTag as dbRemoveTag,
+  6:   getSetting, setSetting,
+  7:   migrateFromLocalStorage, createBackup, DND_PROFILE, genId,
+  8:   getQAState as dbGetQAState, saveQAState as dbSaveQAState, resetQAState as dbResetQAState,
+  9: } from './db';
+ 10: 
+ 11: const AppContext = createContext(null);
+ 12: 
+ 13: const initialState = {
+ 14:   cards: [],
+ 15:   profiles: [],
+ 16:   tags: [],
+ 17:   apiKey: '',
+ 18:   loading: true,
+ 19:   currentTab: 'library',
+ 20:   selectedCardId: null,
+ 21:   editingCardId: null,
+ 22:   editingProfileId: null,
+ 23:   filterProfile: 'all',
+ 24:   filterTag: 'all',
+ 25:   searchQuery: '',
+ 26:   scanProfileId: '',
+ 27: };
+ 28: 
+ 29: function reducer(state, action) {
+ 30:   switch (action.type) {
+ 31:     case 'INIT':
+ 32:       return { ...state, ...action.payload, loading: false };
+ 33:     case 'SET_TAB':
+ 34:       return { ...state, currentTab: action.tab, selectedCardId: null, editingCardId: null, editingProfileId: null };
+ 35:     case 'SELECT_CARD':
+ 36:       return { ...state, selectedCardId: action.id, editingCardId: null };
+ 37:     case 'EDIT_CARD':
+ 38:       return { ...state, editingCardId: action.id };
+ 39:     case 'STOP_EDITING':
+ 40:       return { ...state, editingCardId: null };
+ 41:     case 'DESELECT_CARD':
+ 42:       return { ...state, selectedCardId: null, editingCardId: null };
+ 43:     case 'SET_CARDS':
+ 44:       return { ...state, cards: action.cards };
+ 45:     case 'SET_PROFILES':
+ 46:       return { ...state, profiles: action.profiles };
+ 47:     case 'SET_TAGS':
+ 48:       return { ...state, tags: action.tags };
+ 49:     case 'SET_API_KEY':
+ 50:       return { ...state, apiKey: action.key };
+ 51:     case 'SET_FILTER_PROFILE':
+ 52:       return { ...state, filterProfile: action.value };
+ 53:     case 'SET_FILTER_TAG':
+ 54:       return { ...state, filterTag: action.value };
+ 55:     case 'SET_SEARCH':
+ 56:       return { ...state, searchQuery: action.value };
+ 57:     case 'SET_SCAN_PROFILE':
+ 58:       return { ...state, scanProfileId: action.id };
+ 59:     case 'EDIT_PROFILE':
+ 60:       return { ...state, editingProfileId: action.id };
+ 61:     case 'STOP_EDITING_PROFILE':
+ 62:       return { ...state, editingProfileId: null };
+ 63:     default:
+ 64:       return state;
+ 65:   }
+ 66: }
+ 67: 
+ 68: export function AppProvider({ children }) {
+ 69:   const [state, dispatch] = useReducer(reducer, initialState);
+ 70:   const saveCountRef = useRef(0);
+ 71: 
+ 72:   // ── Initialize ──
+ 73:   useEffect(() => {
+ 74:     async function init() {
+ 75:       // Try migrating from localStorage
+ 76:       const migrated = localStorage.getItem('grimoire-migrated-to-idb');
+ 77:       if (!migrated) {
+ 78:         await migrateFromLocalStorage();
+ 79:       }
+ 80: 
+ 81:       const [cards, profiles, tags, apiKey, scanProfileId] = await Promise.all([
+ 82:         getAllCards(),
+ 83:         getAllProfiles(),
+ 84:         getAllTags(),
+ 85:         getSetting('apiKey'),
+ 86:         getSetting('scanProfileId'),
+ 87:       ]);
+ 88: 
+ 89:       dispatch({
+ 90:         type: 'INIT',
+ 91:         payload: {
+ 92:           cards,
+ 93:           profiles,
+ 94:           tags,
+ 95:           apiKey: apiKey || '',
+ 96:           scanProfileId: scanProfileId || profiles[0]?.id || '',
+ 97:         },
+ 98:       });
+ 99:     }
+100:     init();
+101:   }, []);
+102: 
+103:   // ── Auto-backup every 10 saves ──
+104:   useEffect(() => {
+105:     if (saveCountRef.current > 0 && saveCountRef.current % 10 === 0) {
+106:       createBackup().catch(console.error);
+107:     }
+108:   }, [state.cards, state.profiles, state.tags]);
+109: 
+110:   // ── Card actions ──
+111:   const saveCard = useCallback(async (card) => {
+112:     await putCard(card);
+113:     const cards = await getAllCards();
+114:     dispatch({ type: 'SET_CARDS', cards });
+115:     saveCountRef.current++;
+116:   }, []);
+117: 
+118:   const addCard = useCallback(async (card) => {
+119:     const newCard = { ...card, id: card.id || genId(), createdAt: card.createdAt || Date.now() };
+120:     await putCard(newCard);
+121:     const cards = await getAllCards();
+122:     dispatch({ type: 'SET_CARDS', cards });
+123:     saveCountRef.current++;
+124:     return newCard;
+125:   }, []);
+126: 
+127:   const removeCard = useCallback(async (id) => {
+128:     await dbDeleteCard(id);
+129:     const cards = await getAllCards();
+130:     dispatch({ type: 'SET_CARDS', cards });
+131:     dispatch({ type: 'DESELECT_CARD' });
+132:     saveCountRef.current++;
+133:   }, []);
+134: 
+135:   // ── Profile actions ──
+136:   const saveProfile = useCallback(async (profile) => {
+137:     await putProfile(profile);
+138:     const profiles = await getAllProfiles();
+139:     dispatch({ type: 'SET_PROFILES', profiles });
+140:     saveCountRef.current++;
+141:   }, []);
+142: 
+143:   const addProfile = useCallback(async (profile) => {
+144:     const newProfile = { ...profile, id: profile.id || genId() };
+145:     await putProfile(newProfile);
+146:     const profiles = await getAllProfiles();
+147:     dispatch({ type: 'SET_PROFILES', profiles });
+148:     return newProfile;
+149:   }, []);
+150: 
+151:   const removeProfile = useCallback(async (id) => {
+152:     await dbDeleteProfile(id);
+153:     const profiles = await getAllProfiles();
+154:     dispatch({ type: 'SET_PROFILES', profiles });
+155:     dispatch({ type: 'STOP_EDITING_PROFILE' });
+156:   }, []);
+157: 
+158:   // ── Tag actions ──
+159:   const addTagAction = useCallback(async (name) => {
+160:     await dbAddTag(name);
+161:     const tags = await getAllTags();
+162:     dispatch({ type: 'SET_TAGS', tags });
+163:   }, []);
+164: 
+165:   const removeTagAction = useCallback(async (name) => {
+166:     await dbRemoveTag(name);
+167:     // Also remove from cards
+168:     const cards = await getAllCards();
+169:     for (const card of cards) {
+170:       if (card.tags?.includes(name)) {
+171:         card.tags = card.tags.filter((t) => t !== name);
+172:         await putCard(card);
+173:       }
+174:     }
+175:     const updatedCards = await getAllCards();
+176:     dispatch({ type: 'SET_TAGS', tags: await getAllTags() });
+177:     dispatch({ type: 'SET_CARDS', cards: updatedCards });
+178:   }, []);
+179: 
+180:   // ── Settings actions ──
+181:   const setApiKey = useCallback(async (key) => {
+182:     await setSetting('apiKey', key);
+183:     dispatch({ type: 'SET_API_KEY', key });
+184:   }, []);
+185: 
+186:   const setScanProfileId = useCallback(async (id) => {
+187:     await setSetting('scanProfileId', id);
+188:     dispatch({ type: 'SET_SCAN_PROFILE', id });
+189:   }, []);
+190: 
+191:   // ── QA state actions ──
+192:   const getQAState = useCallback(async (checklistId) => {
+193:     return dbGetQAState(checklistId);
+194:   }, []);
+195: 
+196:   const saveQAState = useCallback(async (checklistId, stateData) => {
+197:     await dbSaveQAState(checklistId, stateData);
+198:   }, []);
+199: 
+200:   const resetQAState = useCallback(async (checklistId) => {
+201:     await dbResetQAState(checklistId);
+202:   }, []);
+203: 
+204:   // ── Card navigation with browser history ──
+205:   const navigateToCard = useCallback((id, isRoot) => {
+206:     dispatch({ type: 'SET_TAB', tab: 'library' });
+207:     dispatch({ type: 'SELECT_CARD', id });
+208:     history.pushState({ cardId: id, root: isRoot }, '');
+209:   }, []);
+210: 
+211:   // Handle browser back/forward within card stack
+212:   useEffect(() => {
+213:     function onPopState(e) {
+214:       const s = e.state;
+215:       if (s?.cardId) {
+216:         dispatch({ type: 'SET_TAB', tab: 'library' });
+217:         dispatch({ type: 'SELECT_CARD', id: s.cardId });
+218:       } else {
+219:         dispatch({ type: 'DESELECT_CARD' });
+220:       }
+221:     }
+222:     window.addEventListener('popstate', onPopState);
+223:     return () => window.removeEventListener('popstate', onPopState);
+224:   }, []);
+225: 
+226:   // ── Reload all data (after import) ──
+227:   const reloadAll = useCallback(async () => {
+228:     const [cards, profiles, tags] = await Promise.all([
+229:       getAllCards(), getAllProfiles(), getAllTags(),
+230:     ]);
+231:     dispatch({ type: 'INIT', payload: { cards, profiles, tags, apiKey: state.apiKey, scanProfileId: state.scanProfileId } });
+232:   }, [state.apiKey, state.scanProfileId]);
+233: 
+234:   const value = {
+235:     state,
+236:     dispatch,
+237:     saveCard,
+238:     addCard,
+239:     removeCard,
+240:     saveProfile,
+241:     addProfile,
+242:     removeProfile,
+243:     addTag: addTagAction,
+244:     removeTag: removeTagAction,
+245:     setApiKey,
+246:     setScanProfileId,
+247:     reloadAll,
+248:     navigateToCard,
+249:     getQAState,
+250:     saveQAState,
+251:     resetQAState,
+252:   };
+253: 
+254:   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+255: }
+256: 
+257: export function useApp() {
+258:   const ctx = useContext(AppContext);
+259:   if (!ctx) throw new Error('useApp must be inside AppProvider');
+260:   return ctx;
+261: }
+</file>
+
+<file path="src/components/Scan.jsx">
+  1: import React, { useState, useRef } from 'react';
+  2: import { useApp } from '../context';
+  3: import { parseCardImage } from '../api';
+  4: import { genId } from '../db';
+  5: import CropOverlay from './CropOverlay';
+  6: import CardEditor from './CardEditor';
+  7: 
+  8: export default function Scan() {
+  9:   const { state, dispatch, addCard, setScanProfileId } = useApp();
+ 10:   const [status, setStatus] = useState('idle'); // idle | cropping | processing | preview | saved | error
+ 11:   const [error, setError] = useState('');
+ 12:   const [preview, setPreview] = useState(null);
+ 13:   const [imgData, setImgData] = useState(null); // current image being cropped: { dataUrl, base64, mediaType }
+ 14:   const [queue, setQueue] = useState([]); // accumulated images: [{ base64, mediaType }]
+ 15:   const [fullPageMode, setFullPageMode] = useState(false);
+ 16:   const [scanInstructions, setScanInstructions] = useState('');
+ 17:   const [showInstructions, setShowInstructions] = useState(false);
+ 18:   const cameraRef = useRef(null);
+ 19:   const galleryRef = useRef(null);
+ 20: 
+ 21:   const profile = state.profiles.find((p) => p.id === state.scanProfileId);
+ 22: 
+ 23:   async function handleFileSelect(e) {
+ 24:     const file = e.target.files?.[0];
+ 25:     if (!file) return;
+ 26:     e.target.value = '';
+ 27: 
+ 28:     // Load via blob URL into an <img> element. Chrome 81+ and Safari 14.2+ apply
+ 29:     // EXIF orientation automatically here (both naturalWidth/Height and drawImage),
+ 30:     // which is more consistent than createImageBitmap({imageOrientation}).
+ 31:     // Drawing to canvas re-encodes without EXIF, so CropOverlay receives a clean image.
+ 32:     const url = URL.createObjectURL(file);
+ 33:     await new Promise((resolve) => {
+ 34:       const img = new Image();
+ 35:       img.onload = () => {
+ 36:         const canvas = document.createElement('canvas');
+ 37:         canvas.width = img.naturalWidth;
+ 38:         canvas.height = img.naturalHeight;
+ 39:         canvas.getContext('2d').drawImage(img, 0, 0);
+ 40:         URL.revokeObjectURL(url);
+ 41:         const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+ 42:         setImgData({ dataUrl, base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' });
+ 43:         setStatus('cropping');
+ 44:         resolve();
+ 45:       };
+ 46:       img.src = url;
+ 47:     });
+ 48:   }
+ 49: 
+ 50:   function handleCropConfirm(images, fullPage) {
+ 51:     setFullPageMode(fullPage);
+ 52:     setQueue((q) => [...q, ...images]);
+ 53:     // Delay unmounting so the touch sequence finishes while the overlay still covers the screen.
+ 54:     setTimeout(() => { setImgData(null); setStatus('idle'); }, 150);
+ 55:   }
+ 56: 
+ 57:   async function processQueue() {
+ 58:     setStatus('processing');
+ 59:     try {
+ 60:       const result = await parseCardImage(queue, state.apiKey, profile, {
+ 61:         fullPageWithRegions: fullPageMode && queue.length === 1,
+ 62:         scanInstructions,
+ 63:       });
+ 64:       setPreview({
+ 65:         ...result,
+ 66:         id: genId(),
+ 67:         profileId: state.scanProfileId,
+ 68:         tags: [],
+ 69:         createdAt: Date.now(),
+ 70:         sections: result.sections || [],
+ 71:       });
+ 72:       setStatus('preview');
+ 73:       setScanInstructions(''); // cleared on success; preserved on error for retry
+ 74:     } catch (err) {
+ 75:       setError(err.message || "Couldn't parse image.");
+ 76:       setStatus('error');
+ 77:     }
+ 78:   }
+ 79: 
+ 80:   function reset() {
+ 81:     setStatus('idle');
+ 82:     setError('');
+ 83:     setPreview(null);
+ 84:     setImgData(null);
+ 85:     setQueue([]);
+ 86:     setFullPageMode(false);
+ 87:   }
+ 88: 
+ 89:   // Crop overlay
+ 90:   if (status === 'cropping' && imgData) {
+ 91:     return (
+ 92:       <CropOverlay
+ 93:         imgDataUrl={imgData.dataUrl}
+ 94:         onConfirm={handleCropConfirm}
+ 95:         onCancel={() => { setImgData(null); setStatus('idle'); }}
+ 96:       />
+ 97:     );
+ 98:   }
+ 99: 
+100:   return (
+101:     <div className="section fade-in">
+102:       <h2 className="section-title">Scan a Page</h2>
+103: 
+104:       {/* Profile picker */}
+105:       <div className="edit-field" style={{ marginBottom: 12 }}>
+106:         <label>Scan Profile</label>
+107:         <select
+108:           value={state.scanProfileId || ''}
+109:           onChange={(e) => setScanProfileId(e.target.value)}
+110:         >
+111:           {state.profiles.length === 0
+112:             ? <option value="">No profiles — create one first</option>
+113:             : state.profiles.map((p) => <option key={p.id} value={p.id}>{p.icon} {p.name}</option>)
+114:           }
+115:         </select>
+116:       </div>
+117: 
+118:       {profile && (
+119:         <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16, lineHeight: 1.4 }}>
+120:           Fields: {(profile.fields || []).map((f) => f.label).join(', ')}
+121:         </div>
+122:       )}
+123: 
+124:       {/* No API key */}
+125:       {!state.apiKey && (
+126:         <div className="setting-group" style={{ textAlign: 'center' }}>
+127:           <div style={{ fontSize: 28, marginBottom: 8 }}>🔑</div>
+128:           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>API key required</div>
+129:           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>Add your Anthropic API key in Settings.</div>
+130:         </div>
+131:       )}
+132: 
+133:       {/* No profile */}
+134:       {state.apiKey && !profile && (
+135:         <div className="setting-group" style={{ textAlign: 'center' }}>
+136:           <div style={{ fontSize: 28, marginBottom: 8 }}>📐</div>
+137:           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>No profile selected</div>
+138:           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>Create a scan profile in the Profiles tab.</div>
+139:         </div>
+140:       )}
+141: 
+142:       {/* Idle / Error — show scan buttons */}
+143:       {state.apiKey && profile && (status === 'idle' || status === 'error') && (
+144:         <>
+145:           <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFileSelect} />
+146:           <input ref={galleryRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileSelect} />
+147: 
+148:           {queue.length > 0 && (
+149:             <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600, marginBottom: 12 }}>
+150:               {queue.length} photo{queue.length > 1 ? 's' : ''} queued
+151:             </div>
+152:           )}
+153: 
+154:           <button className="scan-zone" onClick={() => cameraRef.current?.click()}>
+155:             <div style={{ fontSize: 36, marginBottom: 8 }}>📷</div>
+156:             <div style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600 }}>
+157:               {queue.length > 0 ? 'Take Another Photo' : 'Take Photo'}
+158:             </div>
+159:             <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>Then crop or send full page</div>
+160:           </button>
+161: 
+162:           <button className="btn" style={{ width: '100%', marginTop: 10 }} onClick={() => galleryRef.current?.click()}>
+163:             Choose from Library
+164:           </button>
+165: 
+166:           {/* Collapsible per-scan instructions */}
+167:           {!showInstructions ? (
+168:             <button
+169:               style={{
+170:                 display: 'block', width: '100%', marginTop: 10,
+171:                 background: 'none', border: '1px solid var(--border)',
+172:                 borderRadius: 8, padding: '10px 14px',
+173:                 color: 'var(--text-mid)', fontSize: 15,
+174:                 textAlign: 'left', cursor: 'pointer', minHeight: 44,
+175:               }}
+176:               onClick={() => setShowInstructions(true)}
+177:             >
+178:               ＋ Add instructions
+179:             </button>
+180:           ) : (
+181:             <div style={{ marginTop: 10, border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+182:               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+183:                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Additional Instructions</span>
+184:                 <button
+185:                   style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 18, cursor: 'pointer', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+186:                   onClick={() => setShowInstructions(false)}
+187:                 >✕</button>
+188:               </div>
+189:               <textarea
+190:                 value={scanInstructions}
+191:                 rows={2}
+192:                 placeholder="e.g. 'This is from the 2024 PHB, focus on mechanical effects'"
+193:                 style={{ width: '100%', fontSize: 16, resize: 'none', overflowY: 'auto', maxHeight: 168, boxSizing: 'border-box' }}
+194:                 onChange={(e) => {
+195:                   setScanInstructions(e.target.value);
+196:                   e.target.style.height = 'auto';
+197:                   e.target.style.height = Math.min(e.target.scrollHeight, 168) + 'px';
+198:                 }}
+199:               />
+200:             </div>
+201:           )}
+202: 
+203:           {queue.length > 0 && (
+204:             <button className="btn" style={{ width: '100%', marginTop: 10, background: 'var(--accent)', color: '#1a1714', fontWeight: 700 }} onClick={processQueue}>
+205:               Generate Card{queue.length > 1 ? ` from ${queue.length} Photos` : ''}
+206:             </button>
+207:           )}
+208: 
+209:           {error && (
+210:             <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12 }}>{error}</p>
+211:           )}
+212:         </>
+213:       )}
+214: 
+215:       {/* Processing */}
+216:       {status === 'processing' && (
+217:         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+218:           <div style={{ fontSize: 28, marginBottom: 12, animation: 'pulse 1.5s ease-in-out infinite' }}>📖</div>
+219:           <div style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600 }}>Reading your page...</div>
+220:           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>Extracting card details</div>
+221:         </div>
+222:       )}
+223: 
+224:       {/* Saved */}
+225:       {status === 'saved' && (
+226:         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+227:           <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+228:           <div style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600, marginBottom: 20 }}>Card saved!</div>
+229:           <button className="btn" style={{ width: '100%', marginBottom: 10 }} onClick={reset}>Scan Another</button>
+230:           <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { reset(); dispatch({ type: 'SET_TAB', tab: 'library' }); }}>Go to Library</button>
+231:         </div>
+232:       )}
+233: 
+234:       {/* Preview */}
+235:       {status === 'preview' && preview && (
+236:         <>
+237:           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--text)', marginBottom: 12 }}>Review & Edit</h3>
+238:           <CardEditor
+239:             card={preview}
+240:             onSave={async (draft) => {
+241:               await addCard(draft);
+242:               setStatus('saved');
+243:             }}
+244:             onCancel={reset}
+245:           />
+246:         </>
+247:       )}
+248:     </div>
+249:   );
+250: }
+</file>
+
+<file path="src/db.js">
+  1: import Dexie from 'dexie';
+  2: 
+  3: // ── Database setup ──
+  4: const db = new Dexie('grimoire');
+  5: 
+  6: db.version(1).stores({
+  7:   cards: 'id, name, profileId, createdAt',
+  8:   profiles: 'id, name',
+  9:   tags: 'name',
+ 10:   settings: 'key',
+ 11:   backups: 'id, createdAt',
+ 12: });
+ 13: 
+ 14: db.version(2).stores({
+ 15:   qaState: 'checklistId',
+ 16: });
+ 17: 
+ 18: // ── Default D&D profile ──
+ 19: export const DND_PROFILE = {
+ 20:   id: 'dnd-5e',
+ 21:   name: 'D&D 5th Edition',
+ 22:   icon: '🎲',
+ 23:   color: '#4a7ec2',
+ 24:   builtIn: true,
+ 25:   fields: [
+ 26:     { key: 'stats', label: 'Stats' },
+ 27:     { key: 'description', label: 'Description' },
+ 28:     { key: 'at_higher_levels', label: 'At Higher Levels' },
+ 29:   ],
+ 30:   additionalInstructions:
+ 31:     'Extract D&D 5e content from this page. For spells and cantrips, extract these as key-value Stats: Level, School, Casting Time, Range, Components, Duration, Concentration (Yes/No), Classes. For class features, racial traits, or item abilities, extract relevant properties as Stats (e.g. Prerequisite, Usage, Recharge). Preserve the full description text faithfully. If there is an "At Higher Levels" section, extract it separately.',
+ 32:   useCustomPrompt: false,
+ 33:   customPrompt: '',
+ 34: };
+ 35: 
+ 36: export const PROFILE_COLORS = [
+ 37:   '#4a7ec2', '#5ea66b', '#c29a3e', '#8b5ec2',
+ 38:   '#c25e5e', '#4a9ec2', '#c27a5e', '#7d8590',
+ 39: ];
+ 40: 
+ 41: // ── Migration from old localStorage format ──
+ 42: export async function migrateFromLocalStorage() {
+ 43:   const raw = localStorage.getItem('grimoire-data');
+ 44:   if (!raw) return false;
+ 45: 
+ 46:   try {
+ 47:     const data = JSON.parse(raw);
+ 48:     const cards = data.cards || [];
+ 49:     const tags = data.tags || data.characters || [];
+ 50:     const profiles = data.profiles || [];
+ 51:     const apiKey = localStorage.getItem('grimoire-api-key') || '';
+ 52: 
+ 53:     // Migrate old card formats
+ 54:     cards.forEach((card) => {
+ 55:       if (card.characters && !card.tags) {
+ 56:         card.tags = card.characters;
+ 57:         delete card.characters;
+ 58:       }
+ 59:       if (!card.sections) migrateCardToSections(card);
+ 60:     });
+ 61: 
+ 62:     // Ensure D&D profile exists and migrate profile model
+ 63:     if (!profiles.find((p) => p.id === 'dnd-5e')) {
+ 64:       profiles.unshift({ ...DND_PROFILE });
+ 65:     }
+ 66:     const migratedProfiles = profiles.map(migrateProfileFields);
+ 67: 
+ 68:     // Write to IndexedDB
+ 69:     await db.transaction('rw', db.cards, db.profiles, db.tags, db.settings, async () => {
+ 70:       await db.cards.bulkPut(cards);
+ 71:       await db.profiles.bulkPut(migratedProfiles);
+ 72:       await db.tags.bulkPut(tags.map((t) => (typeof t === 'string' ? { name: t } : t)));
+ 73:       if (apiKey) await db.settings.put({ key: 'apiKey', value: apiKey });
+ 74:     });
+ 75: 
+ 76:     // Mark migration complete — keep old data as safety net
+ 77:     localStorage.setItem('grimoire-migrated-to-idb', 'true');
+ 78:     return true;
+ 79:   } catch (e) {
+ 80:     console.error('Migration failed:', e);
+ 81:     return false;
+ 82:   }
+ 83: }
+ 84: 
+ 85: function migrateCardToSections(card) {
+ 86:   const oldDnd = ['spell', 'cantrip', 'class_feature', 'racial_trait', 'item_ability'];
+ 87: 
+ 88:   if (oldDnd.includes(card.type)) {
+ 89:     card.profileId = 'dnd-5e';
+ 90:     card.sections = [];
+ 91:     const kv = {};
+ 92:     if (card.level != null) kv['Level'] = card.level === 0 ? 'Cantrip' : String(card.level);
+ 93:     if (card.school) kv['School'] = card.school;
+ 94:     if (card.castingTime) kv['Casting Time'] = card.castingTime;
+ 95:     if (card.range) kv['Range'] = card.range;
+ 96:     if (card.components) kv['Components'] = card.components;
+ 97:     if (card.duration) kv['Duration'] = card.duration;
+ 98:     if (card.concentration != null) kv['Concentration'] = card.concentration ? 'Yes' : 'No';
+ 99:     if (card.classes) kv['Classes'] = card.classes;
+100:     const labels = { spell: 'Spell', cantrip: 'Cantrip', class_feature: 'Class Feature', racial_trait: 'Racial Trait', item_ability: 'Item' };
+101:     kv['Type'] = labels[card.type] || card.type;
+102:     if (Object.keys(kv).length) card.sections.push({ name: 'Stats', type: 'key-value', keyValues: kv, priority: 1 });
+103:     if (card.description) card.sections.push({ name: 'Description', type: 'text', content: card.description, priority: 2 });
+104:     if (card.higherLevels) card.sections.push({ name: 'At Higher Levels', type: 'text', content: card.higherLevels, priority: 3 });
+105:   } else {
+106:     card.profileId = card.profileId || '';
+107:     card.sections = [];
+108:     if (card.keyValues && Object.keys(card.keyValues).length) {
+109:       card.sections.push({ name: 'Stats', type: 'key-value', keyValues: card.keyValues, priority: 1 });
+110:     }
+111:     if (card.description) {
+112:       card.sections.push({ name: 'Description', type: 'text', content: card.description, priority: card.sections.length + 1 });
+113:     }
+114:   }
+115: 
+116:   // Clean up old fields
+117:   for (const k of ['type', 'level', 'school', 'castingTime', 'range', 'components', 'duration', 'concentration', 'classes', 'higherLevels', 'keyValues', 'description', 'category']) {
+118:     delete card[k];
+119:   }
+120: }
+121: 
+122: // ── Profile migration: sections/scanInstructions → fields/additionalInstructions ──
+123: export function migrateProfileFields(profile) {
+124:   if (profile.fields) return profile; // already on new model
+125:   const { sections, scanInstructions, ...rest } = profile;
+126:   const fields = (sections || []).map((s) => ({
+127:     key: (s.name || '').toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
+128:     label: s.name || '',
+129:   }));
+130:   return {
+131:     ...rest,
+132:     fields,
+133:     additionalInstructions: scanInstructions || '',
+134:     useCustomPrompt: rest.useCustomPrompt || false,
+135:     customPrompt: rest.customPrompt || '',
+136:   };
+137: }
+138: 
+139: // ── CRUD operations ──
+140: export async function getAllCards() {
+141:   return db.cards.toArray();
+142: }
+143: 
+144: export async function getCard(id) {
+145:   return db.cards.get(id);
+146: }
+147: 
+148: export async function putCard(card) {
+149:   await db.cards.put(card);
+150: }
+151: 
+152: export async function deleteCard(id) {
+153:   await db.cards.delete(id);
+154: }
+155: 
+156: export async function getAllProfiles() {
+157:   let profiles = await db.profiles.toArray();
+158: 
+159:   // Migrate any profiles still on the old sections/scanInstructions model
+160:   const toSave = [];
+161:   profiles = profiles.map((p) => {
+162:     if (!p.fields) {
+163:       const m = migrateProfileFields(p);
+164:       toSave.push(m);
+165:       return m;
+166:     }
+167:     return p;
+168:   });
+169:   if (toSave.length > 0) {
+170:     await db.profiles.bulkPut(toSave);
+171:   }
+172: 
+173:   // Ensure D&D profile
+174:   if (!profiles.find((p) => p.id === 'dnd-5e')) {
+175:     await db.profiles.put({ ...DND_PROFILE });
+176:     profiles.unshift({ ...DND_PROFILE });
+177:   }
+178:   return profiles;
+179: }
+180: 
+181: export async function putProfile(profile) {
+182:   await db.profiles.put(profile);
+183: }
+184: 
+185: export async function deleteProfile(id) {
+186:   await db.profiles.delete(id);
+187: }
+188: 
+189: export async function getAllTags() {
+190:   const tags = await db.tags.toArray();
+191:   return tags.map((t) => t.name);
+192: }
+193: 
+194: export async function addTag(name) {
+195:   await db.tags.put({ name });
+196: }
+197: 
+198: export async function removeTag(name) {
+199:   await db.tags.delete(name);
+200: }
+201: 
+202: export async function getSetting(key) {
+203:   const row = await db.settings.get(key);
+204:   return row?.value ?? null;
+205: }
+206: 
+207: export async function setSetting(key, value) {
+208:   await db.settings.put({ key, value });
+209: }
+210: 
+211: // ── Auto-backup ──
+212: export async function createBackup() {
+213:   const cards = await getAllCards();
+214:   const profiles = await getAllProfiles();
+215:   const tags = await getAllTags();
+216:   const backup = {
+217:     id: 'backup-' + Date.now(),
+218:     createdAt: Date.now(),
+219:     data: { cards, profiles, tags },
+220:   };
+221:   await db.backups.put(backup);
+222: 
+223:   // Keep only last 5 backups
+224:   const all = await db.backups.orderBy('createdAt').toArray();
+225:   if (all.length > 5) {
+226:     const toDelete = all.slice(0, all.length - 5);
+227:     await db.backups.bulkDelete(toDelete.map((b) => b.id));
+228:   }
+229:   return backup;
+230: }
+231: 
+232: export async function getLatestBackup() {
+233:   return db.backups.orderBy('createdAt').last();
+234: }
+235: 
+236: export function exportToJSON(cards, profiles, tags) {
+237:   return JSON.stringify({ cards, profiles, tags, exportedAt: new Date().toISOString() }, null, 2);
+238: }
+239: 
+240: export async function importFromJSON(jsonStr) {
+241:   const data = JSON.parse(jsonStr);
+242:   if (!data.cards && !data.profiles) throw new Error('Invalid backup file');
+243: 
+244:   const cards = data.cards || [];
+245:   const profiles = data.profiles || [];
+246:   const tags = data.tags || [];
+247: 
+248:   // Migrate old formats
+249:   cards.forEach((c) => {
+250:     if (c.characters && !c.tags) { c.tags = c.characters; delete c.characters; }
+251:     if (!c.sections) migrateCardToSections(c);
+252:   });
+253: 
+254:   if (!profiles.find((p) => p.id === 'dnd-5e')) {
+255:     profiles.unshift({ ...DND_PROFILE });
+256:   }
+257:   const migratedProfiles = profiles.map(migrateProfileFields);
+258: 
+259:   await db.transaction('rw', db.cards, db.profiles, db.tags, async () => {
+260:     await db.cards.clear();
+261:     await db.profiles.clear();
+262:     await db.tags.clear();
+263:     await db.cards.bulkPut(cards);
+264:     await db.profiles.bulkPut(migratedProfiles);
+265:     await db.tags.bulkPut(tags.map((t) => (typeof t === 'string' ? { name: t } : t)));
+266:   });
+267: 
+268:   return { cardCount: cards.length, profileCount: profiles.length };
+269: }
+270: 
+271: export function genId() {
+272:   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+273: }
+274: 
+275: // ── Card index for connection discovery ──
+276: // Returns lightweight { id, name, category, summary } for all cards in a profile.
+277: // Pass null/undefined to get index across all profiles.
+278: export async function buildCardIndex(profileId) {
+279:   const cards = profileId
+280:     ? await db.cards.where('profileId').equals(profileId).toArray()
+281:     : await db.cards.toArray();
+282:   return cards.map(({ id, name, category, summary }) => ({
+283:     id,
+284:     name: name || '',
+285:     category: category || '',
+286:     summary: summary || '',
+287:   }));
+288: }
+289: 
+290: // ── QA state helpers ──
+291: export async function getQAState(checklistId) {
+292:   return db.qaState.get(checklistId);
+293: }
+294: 
+295: export async function saveQAState(checklistId, stateData) {
+296:   await db.qaState.put({
+297:     checklistId,
+298:     itemStates: stateData.itemStates || {},
+299:     generalNotes: stateData.generalNotes || '',
+300:     lastModified: Date.now(),
+301:   });
+302: }
+303: 
+304: export async function resetQAState(checklistId) {
+305:   await db.qaState.put({
+306:     checklistId,
+307:     itemStates: {},
+308:     generalNotes: '',
+309:     lastModified: Date.now(),
+310:   });
+311: }
+312: 
+313: export default db;
+</file>
+
+<file path="index.html">
+ 1: <!DOCTYPE html>
+ 2: <html lang="en">
+ 3: <head>
+ 4:   <meta charset="UTF-8">
+ 5:   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+ 6:   <meta name="apple-mobile-web-app-capable" content="yes">
+ 7:   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ 8:   <meta name="theme-color" content="#1a1714">
+ 9:   <title>Grimoire</title>
+10:   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✦</text></svg>">
+11:   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+12: </head>
+13: <body>
+14:   <div id="root"></div>
+15:   <script type="module" src="/src/main.jsx"></script>
+16: </body>
+17: </html>
+</file>
+
+<file path="src/api.js">
+  1: const SUMMARY_INSTRUCTION = `Also generate a "summary" field: a single sentence under 15 words capturing what this card is and its key relationships or category. This is used for indexing, not display.`;
+  2: 
+  3: // ── Dynamic prompt builder ──
+  4: export function buildPrompt(profile) {
+  5:   if (profile.useCustomPrompt) {
+  6:     return (profile.customPrompt || '') + `\n\n${SUMMARY_INSTRUCTION}`;
+  7:   }
+  8: 
+  9:   const fieldLabels = (profile.fields || []).map((f) => `"${f.label}"`).join(', ');
+ 10:   const fieldSection = fieldLabels
+ 11:     ? `This profile expects these fields (in order): ${fieldLabels}`
+ 12:     : '';
+ 13: 
+ 14:   // Support both new (additionalInstructions) and legacy (scanInstructions) field names
+ 15:   const additionalInstructions = profile.additionalInstructions || profile.scanInstructions || '';
+ 16: 
+ 17:   return `You are a reference card parser. Extract content from the image and return ONLY valid JSON with no markdown, no backticks, no preamble.
+ 18: 
+ 19: Schema:
+ 20: {
+ 21:   "name": "string",
+ 22:   "summary": "string",
+ 23:   "source": "string|null",
+ 24:   "sections": [
+ 25:     {
+ 26:       "name": "string",
+ 27:       "type": "text|key-value",
+ 28:       "content": "string|null",
+ 29:       "keyValues": {"key":"value"}|null,
+ 30:       "priority": number
+ 31:     }
+ 32:   ]
+ 33: }
+ 34: 
+ 35: ${fieldSection}
+ 36: 
+ 37: ${additionalInstructions}
+ 38: 
+ 39: Rules:
+ 40: - Return sections matching the expected fields, in the order listed. Only include sections that have actual content.
+ 41: - For structured data (stats, properties, numbers): use type "key-value" with keyValues as string pairs.
+ 42: - For prose text (descriptions, abilities, lore): use type "text" with content string.
+ 43: - Preserve body text faithfully.
+ 44: - If multiple entries visible, extract only the most prominent one.
+ 45: - ${SUMMARY_INSTRUCTION}
+ 46: - Return ONLY the JSON object.`;
+ 47: }
+ 48: 
+ 49: // ── Parse card from one or more images ──
+ 50: // images: [{ base64, mediaType }, ...]
+ 51: // opts.fullPageWithRegions: true when Full Page mode — image has gold overlay highlights
+ 52: export async function parseCardImage(images, apiKey, profile, opts = {}) {
+ 53:   if (!apiKey) throw new Error('No API key configured');
+ 54:   if (!profile) throw new Error('No scan profile selected');
+ 55: 
+ 56:   const imageBlocks = images.map(({ base64, mediaType }) => ({
+ 57:     type: 'image',
+ 58:     source: { type: 'base64', media_type: mediaType, data: base64 },
+ 59:   }));
+ 60: 
+ 61:   let prompt;
+ 62:   if (opts.fullPageWithRegions) {
+ 63:     prompt = 'This image shows a full page with highlighted regions (gold corner-bracket overlays). Focus your extraction on the highlighted areas when building the card.';
+ 64:   } else if (images.length > 1) {
+ 65:     prompt = 'These images are cropped regions from a page. Extract the content from all regions into a single structured card.';
+ 66:   } else {
+ 67:     prompt = 'Extract the content from this image into a structured card.';
+ 68:   }
+ 69: 
+ 70:   let systemPrompt = buildPrompt(profile);
+ 71:   if (opts.scanInstructions) {
+ 72:     systemPrompt += `\n\nAdditional instructions for this scan: ${opts.scanInstructions.trim()}`;
+ 73:   }
+ 74: 
+ 75:   const res = await fetch('https://api.anthropic.com/v1/messages', {
+ 76:     method: 'POST',
+ 77:     headers: {
+ 78:       'Content-Type': 'application/json',
+ 79:       'x-api-key': apiKey,
+ 80:       'anthropic-version': '2023-06-01',
+ 81:       'anthropic-dangerous-direct-browser-access': 'true',
+ 82:     },
+ 83:     body: JSON.stringify({
+ 84:       model: 'claude-sonnet-4-20250514',
+ 85:       max_tokens: 2000,
+ 86:       system: systemPrompt,
+ 87:       messages: [
+ 88:         {
+ 89:           role: 'user',
+ 90:           content: [...imageBlocks, { type: 'text', text: prompt }],
+ 91:         },
+ 92:       ],
+ 93:     }),
+ 94:   });
+ 95: 
+ 96:   if (!res.ok) {
+ 97:     const e = await res.json().catch(() => ({}));
+ 98:     throw new Error(e?.error?.message || 'API error: ' + res.status);
+ 99:   }
+100: 
+101:   const data = await res.json();
+102:   const text = (data.content || []).map((b) => b.text || '').join('');
+103:   return JSON.parse(text.replace(/```json|```/g, '').trim());
+104: }
+105: 
+106: // ── Chat message send ──
+107: // messages: Anthropic-format array (role/content). tools: optional array of tool defs.
+108: export async function sendChatMessage(messages, systemPrompt, apiKey, tools = []) {
+109:   if (!apiKey) throw new Error('No API key configured');
+110: 
+111:   const body = {
+112:     model: 'claude-sonnet-4-20250514',
+113:     max_tokens: 4000,
+114:     system: systemPrompt,
+115:     messages,
+116:   };
+117:   if (tools.length > 0) body.tools = tools;
+118: 
+119:   const res = await fetch('https://api.anthropic.com/v1/messages', {
+120:     method: 'POST',
+121:     headers: {
+122:       'Content-Type': 'application/json',
+123:       'x-api-key': apiKey,
+124:       'anthropic-version': '2023-06-01',
+125:       'anthropic-dangerous-direct-browser-access': 'true',
+126:     },
+127:     body: JSON.stringify(body),
+128:   });
+129: 
+130:   if (!res.ok) {
+131:     const e = await res.json().catch(() => ({}));
+132:     throw new Error(e?.error?.message || 'API error: ' + res.status);
+133:   }
+134: 
+135:   const data = await res.json();
+136:   const text = (data.content || [])
+137:     .filter((b) => b.type === 'text')
+138:     .map((b) => b.text)
+139:     .join('');
+140: 
+141:   return { text: text || '(No text response)', usage: data.usage };
+142: }
+143: 
+144: // ── Crop image helper ──
+145: export function cropImage(imgEl, rect, dispW, dispH) {
+146:   const c = document.createElement('canvas');
+147:   const sx = (rect.x * imgEl.naturalWidth) / dispW;
+148:   const sy = (rect.y * imgEl.naturalHeight) / dispH;
+149:   const sw = (rect.w * imgEl.naturalWidth) / dispW;
+150:   const sh = (rect.h * imgEl.naturalHeight) / dispH;
+151:   c.width = Math.round(sw);
+152:   c.height = Math.round(sh);
+153:   c.getContext('2d').drawImage(
+154:     imgEl, Math.round(sx), Math.round(sy), Math.round(sw), Math.round(sh),
+155:     0, 0, c.width, c.height
+156:   );
+157:   return c.toDataURL('image/jpeg', 0.92).split(',')[1];
+158: }
+</file>
+
+<file path="CLAUDE.md">
+  1: # CLAUDE.md
+  2: 
+  3: This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+  4: 
+  5: ## Commands
+  6: 
+  7: ```bash
+  8: npm run dev       # Start development server (Vite, hot reload)
+  9: npm run build     # Production build → dist/
+ 10: npm run preview   # Preview production build locally
+ 11: ```
+ 12: 
+ 13: No test runner is configured. There is no lint script — the project uses plain JSX/JS with no TypeScript compilation.
+ 14: 
+ 15: ## Architecture
+ 16: 
+ 17: **Grimoire** is a local-first PWA for managing personal reference cards (wiki-style), with AI-powered scanning via the Claude API.
+ 18: 
+ 19: ### Data Flow
+ 20: 
+ 21: ```
+ 22: IndexedDB (Dexie, db.js)
+ 23:     ↓ loaded on startup
+ 24: React Context + Reducer (context.jsx)
+ 25:     ↓ consumed by all components
+ 26: Components (src/components/)
+ 27: ```
+ 28: 
+ 29: State lives entirely in `context.jsx` (reducer pattern). All DB writes go through context actions (`saveCard`, `addProfile`, etc.), which also handle auto-backup every 10 saves.
+ 30: 
+ 31: ### Key Files
+ 32: 
+ 33: - **`src/db.js`** — Dexie schema (`cards`, `profiles`, `tags`, `settings`, `backups`). Contains migration logic from old localStorage format and the built-in D&D 5e profile.
+ 34: - **`src/context.jsx`** — Single source of truth. Exposes state and action dispatchers via `useGrimoire()` hook.
+ 35: - **`src/api.js`** — Claude API integration. `parseCardImage()` sends a base64 image to `claude-sonnet-4-20250514` with a prompt built from the active profile's section definitions. Direct browser-side fetch (no backend proxy).
+ 36: - **`src/linking.js`** — Link markup: `[[cardId|display text]]`. Functions for parsing, segmenting, inserting, removing, and computing reverse links.
+ 37: - **`src/App.jsx`** — Tab-based navigation shell (Library, Scan, Tags, Profiles, Settings).
+ 38: 
+ 39: ### Profiles
+ 40: 
+ 41: Profiles define the card schema: each profile specifies which sections a card has, their types (key-value vs. free text), and AI scanning instructions. The D&D 5e profile is hardcoded in `db.js` and always available. Custom profiles are stored in IndexedDB.
+ 42: 
+ 43: ### Deployment
+ 44: 
+ 45: Vite base path is `/grimoire/` — all asset paths are relative to that subpath. PWA service worker auto-updates. App is designed for mobile-first use at max-width 480px.
+ 46: 
+ 47: ### Styling
+ 48: 
+ 49: CSS variables in `App.css` define the design system (dark theme, gold accent `#c29a3e`, Cinzel/Nunito Sans fonts). No CSS framework or preprocessor.
+ 50: 
+ 51: 
+ 52: ## Conventions
+ 53: 
+ 54: - Discuss architecture decisions before writing code
+ 55: - Deployed to GitHub Pages at https://paulsmith1232.github.io/grimoire/; repo is `paulsmith1232/grimoire`
+ 56: - Git uses a personal access token with the noreply email for privacy
+ 57: - After `npm run build`, the `dist/` output must be pushed to the deployment branch for changes to go live
+ 58: 
+ 59: ## Standing Instructions for Claude Code
+ 60: 
+ 61: ### Implementing Specs
+ 62: - Pending specs below are written during planning sessions on claude.ai. They represent finalized decisions — do not second-guess architectural choices marked with "Decision/Rationale" unless they conflict with existing code, in which case flag the conflict and ask before proceeding.
+ 63: - Follow the **Implementation Notes** section of each spec closely. It lists the files to modify, where new code hooks in, and what is explicitly out of scope.
+ 64: - If anything in a spec is genuinely ambiguous or impossible given the current codebase, stop and ask — do not silently deviate or invent an alternative approach.
+ 65: 
+ 66: ### After Completing a Spec
+ 67: - Move the completed spec from **Pending Specs** to **Ready for Testing**.
+ 68: - Add the implementation date and a summary of what was implemented, including any deviations.
+ 69: - Include a **Test checklist** — a short bullet list of the key behaviors to manually verify. Write these as user-facing actions, not implementation details. Think "what would I tap/see/check on the phone?" Each item should be a concrete action with an expected result.
+ 70: - Also append a new checklist entry to `src/qa-checklists.json` with a stable ID (kebab-case feature name + implementation date, e.g. `"profile-editing-2026-04-14"`). Mirror the test checklist items from CLAUDE.md into the JSON `items` array.
+ 71: - Example format:
+ 72:   ```
+ 73:   ### Feature: [Name] — Implemented 2026-04-14
+ 74:   [Implementation summary and deviation notes]
+ 75:   **Test checklist:**
+ 76:   - [ ] [Action] → [expected result]
+ 77:   - [ ] [Action] → [expected result]
+ 78:   **Deploy after testing:** `npm run deploy`
+ 79:   ```
+ 80: - Do NOT move specs directly to Completed. Only the developer moves specs from Ready for Testing to Completed after manual verification.
+ 81: 
+ 82: ### General
+ 83: - Do not modify or remove pending specs you are not actively implementing.
+ 84: - When making changes, keep commits granular — one feature or fix per commit with a clear message.
+ 85: - After any session where files were changed, do a final review pass to make sure no debug logging, commented-out code, or TODO placeholders were left behind.
+ 86: 
+ 87: ### Voice-to-Text Design Principles (apply to all new UI)
+ 88: 
+ 89: - All text inputs are multi-line auto-growing textareas. Min 2 rows, max 6 before scroll. 16px+ font size to prevent iOS zoom-on-focus.
+ 90: - Do NOT suppress autocorrect or spellcheck — voice dictation relies on these.
+ 91: - Large touch targets: all action buttons at least 44x44px.
+ 92: - No reliance on precise formatting in user input. All system prompts instruct Claude to handle voice-dictated, unpunctuated, conversational input.
+ 93: - Button-driven navigation. All major actions are initiated by taps, not typed commands.
+ 94: - Placeholder text in inputs should read like example voice dictation to guide users.
+ 95: 
+ 96: ### Cost Guardrails (apply to all Claude API interactions)
+ 97: 
+ 98: - After every Claude API response in chat or discovery flows, display a subtle line below the message: `~1,247 input tokens · ~384 output tokens`. Pull from the API response's `usage` object.
+ 99: - Before any batch API call where estimated input exceeds 30k tokens, show a confirmation dialog: "This will send approximately [N]k tokens to Claude. Continue?" Estimate with `JSON.stringify(payload).length / 4`.
+100: 
+101: ---
+102: 
+103: ## Pending Specs
+104: 
+105: ### Feature: Inline Card Linking
+106: 
+107: **Goal:** Any text within any card field can link to another card, Wikipedia-style. Tapping a link navigates to that card with full back-navigation support.
+108: 
+109: **Storage Format:**
+110: - Inline tokens embedded in field value strings: `[[cardId|display text]]`
+111: - `cardId` is the target card's unique ID (resilient to renames)
+112: - `display text` is what renders visually
+113: - Example field value: `"Deal [[abc123|Fire]] damage equal to your [[def456|Spellcasting Modifier]]"`
+114: 
+115: **Authoring UX:**
+116: 1. User is editing a card field (any field)
+117: 2. User selects/highlights a span of text
+118: 3. A "Link" action appears (button or floating action)
+119: 4. Tapping "Link" opens a card search/picker modal
+120: 5. User selects the target card
+121: 6. The selected text wraps in `[[targetId|selected text]]` in the raw field value
+122: 
+123: **Rendering:**
+124: - In view mode (non-edit), parse `[[id|text]]` tokens in all field values
+125: - Render linked text as styled tappable `<span>` elements — visually distinct with gold underline to match the grimoire theme
+126: - In edit mode, show the raw `[[id|text]]` markup (no rendering of links)
+127: 
+128: **Navigation — Card History Stack:**
+129: - Maintain an in-memory array of card IDs, capped at 10 entries
+130: - When user taps a link: push target card ID onto the stack AND call `history.pushState({ cardId, depth })` on the browser History API
+131: - Listen for `popstate` event — on back-swipe/back-button, navigate to the previous card in the stack instead of leaving the page
+132: - **Sentinel behavior:** When the stack has only one entry (the first card opened from a list/search), the next back action exits card view entirely and returns to the previous screen. Use `{ root: true }` in the pushState data to distinguish "go back one card" from "exit card view entirely."
+133: 
+134: **Decisions:**
+135: - Decision: Store link tokens as `[[cardId|displayText]]` directly in field value strings, not in a separate link table.
+136:   Rationale: Survives card renames, no join overhead, keeps field values self-contained. Easy to debug by inspecting raw data.
+137: - Decision: Use browser History API with a sentinel state, not a custom in-app router.
+138:   Rationale: Hijacks mobile back-swipe naturally without fighting the browser. Sentinel pattern cleanly handles the "exit card view" vs "go back one card" distinction.
+139: - Decision: Links render only in view mode. Edit mode shows raw `[[id|text]]` markup.
+140:   Rationale: Keeps the editor simple. Users can see and manually adjust link tokens. A WYSIWYG editor would add significant complexity for minimal gain.
+141: - Decision: Cap the history stack at 10 entries.
+142:   Rationale: Prevents unbounded memory growth from deep link chains. 10 levels of depth is more than enough for practical use.
+143: 
+144: **Edge Cases:**
+145: - Deleted target card: render the display text as plain (non-linked) text, or show a subtle "card not found" indicator (e.g., strikethrough or dimmed). Do not crash or show broken UI.
+146: - Circular links (A→B→A): no special handling needed. The stack is linear history — user navigates back through it normally.
+147: - Links created via API scanning: not in scope now, but the `[[id|text]]` format is compatible with future auto-linking where the scan prompt includes the card index.
+148: - Empty display text: `[[id|]]` should not render a visible link. Treat as plain text (skip it).
+149: 
+150: **Implementation Notes:**
+151: - Files to modify:
+152:   - `src/linking.js` — already exists as a utility file. Add/update: `parseLinks(text)` returns array of `{ type: 'text'|'link', content, cardId? }` segments. Add `wrapLink(text, cardId)` for authoring. Add `resolveLinks(segments, cardLookup)` to check if target cards exist.
+153:   - `src/components/LinkedText.jsx` — already exists. Update to render parsed segments as mixed `<span>` (plain) and tappable `<span>` (linked) elements. Receives an `onNavigate(cardId)` callback.
+154:   - `src/components/CardDetail.jsx` — integrate `LinkedText` into field value rendering in view mode. Add the `popstate` listener and history stack management here (or in a custom `useCardHistory` hook).
+155:   - `src/components/CardEditor.jsx` — add link authoring: detect text selection, show "Link" button, open card picker modal, wrap selection in `[[id|text]]`.
+156: - New files:
+157:   - `src/components/LinkPicker.jsx` — modal with search input that filters existing cards. Returns the selected card's ID. Keep it simple — a text input with a filtered list below it.
+158:   - `src/hooks/useCardHistory.js` (optional) — encapsulate the history stack, `pushState`, and `popstate` listener. Cleaner than putting it all in CardDetail.
+159: - The `popstate` listener must be set up carefully to not conflict with any existing navigation logic. Check what currently handles tab switching and card selection in `context.jsx` / `App.jsx` before wiring this in.
+160: - Naming conventions: follow existing patterns — `useXxx` for hooks, `handleXxx` for event handlers, component files are PascalCase.
+161: - Not in scope: auto-linking during API scanning, reverse link index ("what links to this card"), WYSIWYG link editing.
+162: 
+163: ---
+164: 
+165: ## Ready for Testing
+166: 
+167: *(Specs that have been implemented but not yet manually verified and deployed.)*
+168: 
+169: ### Feature: QA Checklist Tab — Implemented 2026-04-16
+170: Implemented as specced.
+171: - `db.js`: `qaState` table added (DB version bumped to 2). Helpers `getQAState`, `saveQAState`, `resetQAState` exported.
+172: - `context.jsx`: `getQAState`, `saveQAState`, `resetQAState` added as `useCallback` actions and exposed through context value.
+173: - `src/qa-checklists.json`: Created with two seed checklists — Profile Editing & Prompt Builder and QA Checklist Tab.
+174: - `src/components/QAChecklist.jsx`: Collapsible checklist card. Per-item checkbox + note toggle (auto-growing 16px textarea). General notes textarea at bottom. Export Report (markdown to clipboard) and Reset (confirmation dialog) buttons. Toast confirmation on copy.
+175: - `src/components/QA.jsx`: Tab component. Loads all checklist states from IndexedDB on mount. Passes state and callbacks to QAChecklist components. Empty state when no checklists.
+176: - `src/App.jsx`: QA tab added to nav with 📋 icon.
+177: - `CLAUDE.md`: "After Completing a Spec" standing instruction updated to include appending to `src/qa-checklists.json`.
+178: - Deviations: None.
+179: 
+180: **Test checklist:**
+181: - [ ] QA tab appears in the nav bar with a 📋 icon → tapping it shows the QA screen
+182: - [ ] Two checklist cards appear: "Profile Editing & Prompt Builder" and "QA Checklist Tab"
+183: - [ ] Each card shows feature name, date, and "0/N checked" progress
+184: - [ ] Tap a checklist card → expands showing summary, deviations, items, general notes, Export/Reset buttons
+185: - [ ] Check off an item → progress counter updates
+186: - [ ] Switch to another tab and return → checked state is still there
+187: - [ ] Tap the ✎ note icon on an item → textarea expands below it, type a note → note is saved
+188: - [ ] Type in General Notes → saves (verify by leaving and returning)
+189: - [ ] Tap "Export Report" → toast says "Copied to clipboard", paste into a text editor to verify markdown format
+190: - [ ] Tap "Reset" → confirmation dialog appears → confirm → all checks and notes clear
+191: 
+192: **Deploy after testing:** `npm run deploy`
+193: 
+194: ### Feature: Profile Editing & Prompt Builder — Implemented 2026-04-14
+195: Implemented as specced.
+196: - `db.js`: `DND_PROFILE` updated to new model (`fields` + `additionalInstructions`). `migrateProfileFields()` exported helper converts old `sections`/`scanInstructions` to new shape. `getAllProfiles()` auto-migrates and persists any un-migrated profiles on load. `migrateFromLocalStorage()` and `importFromJSON()` also run profile migration.
+197: - `ProfileEditor.jsx`: Sections editor replaced with fields editor (label input per field, ▲/▼ reorder, × delete, + Add Field). `scanInstructions` renamed to `additionalInstructions` throughout. Custom prompt toggle and assembled prompt preview unchanged.
+198: - `api.js`: `buildPrompt()` now uses `profile.fields` (label list) and `profile.additionalInstructions`. Legacy `scanInstructions` fallback retained for safety. Rules section updated to guide Claude on text vs key-value inference (since fields no longer carry explicit types).
+199: - `Profiles.jsx`: New profile template updated to use `fields`/`additionalInstructions`. Profile card chip list updated to render from `fields`.
+200: - `Scan.jsx`: Profile summary line updated from `profile.sections` to `profile.fields`.
+201: - Deviations: (1) Drag-to-reorder replaced with ▲/▼ buttons — reused the existing pattern from the old sections editor rather than adding drag handling. (2) `key` is auto-derived from `label` (lowercased, underscored) instead of being a user-editable field — keeps the UI simpler for a label-only input. (3) Fields carry no explicit type — `buildPrompt()` instructs Claude to infer text vs key-value from context, since the type distinction was removed from the data model.
+202: 
+203: **Test checklist:**
+204: - [ ] Open the D&D 5e profile → fields show (Name, Level, etc.) not old sections
+205: - [ ] Add a new field, reorder with ▲/▼, delete one → changes save
+206: - [ ] Type in Additional Instructions → assembled prompt preview updates live
+207: - [ ] Toggle "Use custom prompt" on → freeform textarea appears, assembled preview hidden
+208: - [ ] Toggle it back off → fields and instructions still intact
+209: - [ ] Scan a card using the edited profile → card comes back with expected fields
+210: 
+211: **Deploy after testing:** `npm run deploy`
+212: 
+213: ---
+214: 
+215: ## Completed Specs
+216: 
+217: ### Feature: Chat Panel Component — Completed 2026-04-13
+218: Implemented as specced. New `src/components/ChatPanel.jsx`: slide-up overlay (90vh, `translateY` animation), scrollable message thread with user/assistant/error bubbles, auto-growing textarea (16px, 2-6 rows), image attach with thumbnail preview, full history sent per call, JSON fence detection with structured-message stub, token usage display, 30k-token cost guardrail. `sendChatMessage` added to `api.js`. CSS added to `App.css`. Placeholder system prompts in place — will be replaced when sections 5-6 are implemented. Note: `onSaveProfile` prop is wired through but not yet called; that hookup comes with sections 5-6.
+219: 
+220: ### Feature: Scan-Time Custom Prompt Field — Completed 2026-04-13
+221: Implemented as specced. Collapsible "＋ Add instructions" row in the idle/error scan state; expands to an auto-growing textarea (16px, min 2 rows, max 6 / 168px). `scanInstructions` cleared on successful API call, preserved on error. `api.js` appends the instructions to the system prompt via `opts.scanInstructions`.
+222: 
+223: ### Feature: Multi-Region Selection Tool — Completed 2026-04-13
+224: Implemented as specced. `CropOverlay.jsx` fully rewritten: multi-rect state, semi-transparent gold fill + corner-bracket overlays, ✕ hit-tested delete buttons, Full Page / Crop Only toggle (default Full Page ON), "Scan N Regions" button disabled at zero. `Scan.jsx` updated to new `onConfirm(images, fullPage)` interface, tracks `fullPageMode`, passes it to `parseCardImage`. `api.js` adds `opts.fullPageWithRegions` parameter to select the appropriate user prompt. Deviation: props changed from `{ onCrop, onSendFull }` to `{ onConfirm }` — image processing moved into CropOverlay, consistent with spec intent.
+225: 
+226: ### Feature: Card Index Infrastructure — Completed 2026-04-13
+227: Implemented as specced.
+228: - `buildCardIndex(profileId)` added to `db.js` — queries cards by profileId (or all cards if null), returns `{ id, name, category, summary }` array.
+229: - `buildPrompt()` in `api.js` updated: added `"summary"` field to the assembled JSON schema and appended the summary instruction as a rule. For custom-prompt mode, the instruction is appended after the user's custom text.
+230: - `Library.jsx` shows a subtle `●` dot (with tooltip) next to card names missing a summary, 1-col list view only.
+</file>
+
+</files>
+
+
+<git_logs>
+<git_log_commit>
+<date>2026-04-26 17:48:28 -0400</date>
+<message>Add QA Checklist Tab</message>
+<files>
+CLAUDE.md
+src/App.jsx
+src/components/QA.jsx
+src/components/QAChecklist.jsx
+src/context.jsx
+src/db.js
+src/qa-checklists.json
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-16 20:21:59 -0400</date>
+<message>Add QA Checklist Tab spec</message>
+<files>
+CLAUDE.md
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-15 21:41:12 -0400</date>
+<message>Add files via upload</message>
+<files>
+CLAUDE.md
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-14 18:02:12 -0400</date>
+<message>Profile Editing & Prompt Builder: migrate sections → fields model</message>
+<files>
+CLAUDE.md
+package-lock.json
+src/api.js
+src/components/ProfileEditor.jsx
+src/components/Profiles.jsx
+src/components/Scan.jsx
+src/db.js
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-13 22:03:20 -0400</date>
+<message>Chat panel component: slide-up conversational interface with Claude</message>
+<files>
+CLAUDE.md
+src/App.css
+src/api.js
+src/components/ChatPanel.jsx
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-13 21:47:43 -0400</date>
+<message>Scan-time custom prompt field: collapsible per-scan instructions</message>
+<files>
+CLAUDE.md
+src/api.js
+src/components/Scan.jsx
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-13 21:44:35 -0400</date>
+<message>Multi-region selection tool: replace single-crop with multi-rect overlay</message>
+<files>
+CLAUDE.md
+src/api.js
+src/components/CropOverlay.jsx
+src/components/Scan.jsx
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-13 21:02:23 -0400</date>
+<message>Implement card index infrastructure spec</message>
+<files>
+CLAUDE.md
+src/api.js
+src/components/Library.jsx
+src/db.js
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-13 20:48:55 -0400</date>
+<message>Add batch 1 intelligent profile specs to CLAUDE.md</message>
+<files>
+CLAUDE.md
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-04-13 20:03:47 -0400</date>
+<message>Move git to project root, track source code</message>
+<files>
+.gitignore
+CLAUDE.md
+assets/index-B8XWEnbZ.css
+assets/index-BsL4GdNz.js
+index.html
+manifest.webmanifest
+package-lock.json
+package.json
+registerSW.js
+src/App.css
+src/App.jsx
+src/api.js
+src/components/CardDetail.jsx
+src/components/CardEditor.jsx
+src/components/CropOverlay.jsx
+src/components/Library.jsx
+src/components/LinkedText.jsx
+src/components/ProfileEditor.jsx
+src/components/Profiles.jsx
+src/components/Scan.jsx
+src/components/Settings.jsx
+src/components/Tags.jsx
+src/context.jsx
+src/db.js
+src/linking.js
+src/main.jsx
+sw.js
+vite.config.js
+workbox-8c29f6e4.js
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-03-31 20:55:41 -0400</date>
+<message>Profile editor fix, prompt builder, card link history stack, section expand</message>
+<files>
+assets/index-BsL4GdNz.js
+assets/index-DU-YYSy1.js
+index.html
+sw.js
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-03-30 06:38:50 -0400</date>
+<message>Update build</message>
+<files>
+assets/index-DU-YYSy1.js
+assets/index-DtEx7rMZ.js
+index.html
+sw.js
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-03-29 16:58:29 -0400</date>
+<message>Scan improvements, scroll fix, and crop overlay stability</message>
+<files>
+assets/index-B8XWEnbZ.css
+assets/index-DMDXrlh3.js
+assets/index-Doq6a7EZ.css
+assets/index-DtEx7rMZ.js
+index.html
+sw.js
+</files>
+</git_log_commit>
+<git_log_commit>
+<date>2026-03-28 21:22:18 -0400</date>
+<message>Grimoire v5 - React rewrite</message>
+<files>
+assets/index-DMDXrlh3.js
+assets/index-Doq6a7EZ.css
+index.html
+manifest.webmanifest
+registerSW.js
+sw.js
+workbox-8c29f6e4.js
+</files>
+</git_log_commit>
+</git_logs>
