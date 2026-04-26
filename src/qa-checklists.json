@@ -1,0 +1,36 @@
+{
+  "checklists": [
+    {
+      "id": "profile-editing-2026-04-14",
+      "featureName": "Profile Editing & Prompt Builder",
+      "implementedDate": "2026-04-14",
+      "summary": "Migrated profiles from sections/scanInstructions model to fields/additionalInstructions. ProfileEditor now shows a label-only field editor with ▲/▼ reorder and delete. api.js buildPrompt uses field labels.",
+      "deviations": "Drag-to-reorder replaced with ▲/▼ buttons. key auto-derived from label. Fields carry no explicit type — Claude infers text vs key-value from context.",
+      "items": [
+        { "id": "1", "text": "Open the D&D 5e profile → fields show (Name, Level, etc.) not old sections" },
+        { "id": "2", "text": "Add a new field, reorder with ▲/▼, delete one → changes save" },
+        { "id": "3", "text": "Type in Additional Instructions → assembled prompt preview updates live" },
+        { "id": "4", "text": "Toggle \"Use custom prompt\" on → freeform textarea appears, assembled preview hidden" },
+        { "id": "5", "text": "Toggle it back off → fields and instructions still intact" },
+        { "id": "6", "text": "Scan a card using the edited profile → card comes back with expected fields" }
+      ]
+    },
+    {
+      "id": "qa-checklist-tab-2026-04-16",
+      "featureName": "QA Checklist Tab",
+      "implementedDate": "2026-04-16",
+      "summary": "New QA tab in the main nav. Reads checklists from qa-checklists.json, persists check/note state in IndexedDB qaState table. Supports per-item notes, general notes, clipboard export, and reset with confirmation.",
+      "deviations": "",
+      "items": [
+        { "id": "1", "text": "QA tab appears in the nav bar with a clipboard/checkmark icon" },
+        { "id": "2", "text": "Profile Editing checklist card shows with feature name, date, and \"0/6 checked\" progress" },
+        { "id": "3", "text": "Tap checklist card → expands to show all items with checkboxes" },
+        { "id": "4", "text": "Check off an item → progress updates, state persists after closing and reopening the tab" },
+        { "id": "5", "text": "Tap note icon on an item → textarea expands below, type a note → saves" },
+        { "id": "6", "text": "Type in General Notes textarea → saves" },
+        { "id": "7", "text": "Tap \"Export Report\" → markdown copied to clipboard (paste somewhere to verify format)" },
+        { "id": "8", "text": "Tap \"Reset Checklist\" → confirmation dialog → clears all checks and notes" }
+      ]
+    }
+  ]
+}

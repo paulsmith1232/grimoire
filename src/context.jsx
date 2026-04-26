@@ -5,6 +5,7 @@ import {
   getAllTags, addTag as dbAddTag, removeTag as dbRemoveTag,
   getSetting, setSetting,
   migrateFromLocalStorage, createBackup, DND_PROFILE, genId,
+  getQAState as dbGetQAState, saveQAState as dbSaveQAState, resetQAState as dbResetQAState,
 } from './db';
 
 const AppContext = createContext(null);
@@ -187,6 +188,19 @@ export function AppProvider({ children }) {
     dispatch({ type: 'SET_SCAN_PROFILE', id });
   }, []);
 
+  // ── QA state actions ──
+  const getQAState = useCallback(async (checklistId) => {
+    return dbGetQAState(checklistId);
+  }, []);
+
+  const saveQAState = useCallback(async (checklistId, stateData) => {
+    await dbSaveQAState(checklistId, stateData);
+  }, []);
+
+  const resetQAState = useCallback(async (checklistId) => {
+    await dbResetQAState(checklistId);
+  }, []);
+
   // ── Card navigation with browser history ──
   const navigateToCard = useCallback((id, isRoot) => {
     dispatch({ type: 'SET_TAB', tab: 'library' });
@@ -232,6 +246,9 @@ export function AppProvider({ children }) {
     setScanProfileId,
     reloadAll,
     navigateToCard,
+    getQAState,
+    saveQAState,
+    resetQAState,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

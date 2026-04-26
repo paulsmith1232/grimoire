@@ -67,6 +67,7 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 - Move the completed spec from **Pending Specs** to **Ready for Testing**.
 - Add the implementation date and a summary of what was implemented, including any deviations.
 - Include a **Test checklist** — a short bullet list of the key behaviors to manually verify. Write these as user-facing actions, not implementation details. Think "what would I tap/see/check on the phone?" Each item should be a concrete action with an expected result.
+- Also append a new checklist entry to `src/qa-checklists.json` with a stable ID (kebab-case feature name + implementation date, e.g. `"profile-editing-2026-04-14"`). Mirror the test checklist items from CLAUDE.md into the JSON `items` array.
 - Example format:
   ```
   ### Feature: [Name] — Implemented 2026-04-14
@@ -100,132 +101,6 @@ CSS variables in `App.css` define the design system (dark theme, gold accent `#c
 ---
 
 ## Pending Specs
-
-### Feature: QA Checklist Tab
-Goal: An in-app interface for working through test checklists from Ready for Testing specs. Check off items, add notes, and export a structured report for pasting into claude.ai or Claude Code.
-Data Source:
-
-A new file src/qa-checklists.json is the source of truth for checklists. Claude Code writes to this file whenever it moves a spec to Ready for Testing.
-Structure:
-
-json{
-  "checklists": [
-    {
-      "id": "profile-editing-2026-04-14",
-      "featureName": "Profile Editing & Prompt Builder",
-      "implementedDate": "2026-04-14",
-      "summary": "Brief 1-2 line summary of what was implemented",
-      "deviations": "Optional notes on spec deviations",
-      "items": [
-        { "id": "1", "text": "Open the D&D 5e profile → fields show (Name, Level, etc.) not old sections" },
-        { "id": "2", "text": "Add a new field, reorder with ▲/▼, delete one → changes save" }
-      ]
-    }
-  ]
-}
-Tab UI:
-
-New "QA" tab in the main nav (alongside Library, Scan, Tags, Profiles, Settings). Use a clipboard/checkmark icon.
-Tab shows a list of checklists from qa-checklists.json. Each checklist is a collapsible card showing: feature name, date, progress (e.g., "3/6 checked").
-Tapping a checklist expands it to show:
-
-Feature summary and deviations (read-only)
-Each checklist item as a large tappable row: checkbox + item text + small note icon
-A "General notes" textarea at the bottom for feedback not tied to a specific item
-"Export Report" button
-"Reset Checklist" button (confirmation dialog before clearing state)
-
-
-
-Per-Item Notes:
-
-Tapping the note icon on a checklist item expands an auto-growing textarea below that item (16px, 2-6 rows, voice-friendly per standing instructions).
-Notes are freeform — for reporting bugs, feature improvements, or anything else worth flagging.
-Empty notes don't appear in the exported report.
-
-State Storage:
-
-IndexedDB table: qaState. Schema: { checklistId, itemStates, generalNotes, lastModified } where itemStates is { [itemId]: { checked: boolean, note: string } }.
-State is keyed by checklistId so it survives if the checklists JSON is updated (unless the checklist itself is removed).
-When a new checklist appears in qa-checklists.json that has no saved state, initialize with all items unchecked and empty notes.
-
-Export Format:
-
-"Export Report" generates a markdown block and copies it to clipboard (with a toast confirmation). Format:
-
-## QA Report: [Feature Name]
-Tested: [current date]
-Implemented: [implementedDate]
-
-### Checklist
-- [x] Item 1 text
-  - Note: User's note if present
-- [ ] Item 2 text (not yet verified)
-- [x] Item 3 text
-
-### General Notes
-[generalNotes content, omitted if empty]
-
-Only items with a checked or unchecked state show. Items with notes include the note indented below.
-Unchecked items are flagged as "(not yet verified)" so the report makes clear what's still outstanding.
-
-Decisions:
-
-Decision: QA state lives in IndexedDB, not in the JSON file. Rationale: Checklists are the contract from Claude Code; state is the user's working memory. Separating them means Claude Code can freely update checklists without clobbering in-progress testing.
-Decision: Checklists are keyed by ID (e.g., profile-editing-2026-04-14), not by array index. Rationale: Stable identity so state survives reorderings and deletions in the source JSON.
-Decision: Export is markdown to clipboard, not a file download. Rationale: The target is a paste into claude.ai or Claude Code — clipboard is the fastest path.
-
-Edge Cases:
-
-Empty checklists array: show an empty state message ("No checklists ready for testing").
-Checklist removed from JSON but state still exists: hide it from the tab but don't delete the state (in case it returns).
-Very long notes: the textarea should cap at 6 rows with scroll, same as the voice-to-text principles.
-
-Implementation Notes:
-
-Files to create:
-
-src/qa-checklists.json — seed with two checklists:
-
-The existing Profile Editing checklist from the Ready for Testing section of CLAUDE.md
-A checklist for the QA Checklist Tab feature itself, with these items:
-
-QA tab appears in the nav bar with a clipboard/checkmark icon
-Profile Editing checklist card shows with feature name, date, and "0/6 checked" progress
-Tap checklist card → expands to show all items with checkboxes
-Check off an item → progress updates, state persists after closing and reopening the tab
-Tap note icon on an item → textarea expands below, type a note → saves
-Type in General Notes textarea → saves
-Tap "Export Report" → markdown copied to clipboard (paste somewhere to verify format)
-Tap "Reset Checklist" → confirmation dialog → clears all checks and notes
-
-
-
-
-src/components/QA.jsx — the tab component
-src/components/QAChecklist.jsx — a single checklist card (collapsible, with items and notes)
-
-
-Files to modify:
-
-src/db.js — add qaState table to Dexie schema (bump DB version). Add helpers: getQAState(checklistId), saveQAState(checklistId, state), resetQAState(checklistId).
-src/context.jsx — add QA state and action dispatchers following existing patterns.
-src/App.jsx — add QA tab to the nav.
-
-
-Standing instruction update — add to "After Completing a Spec":
-
-When moving a spec to Ready for Testing, also append a new checklist entry to src/qa-checklists.json with a stable ID (kebab-case feature name + implementation date).
-
-
-Follow voice-to-text design principles for all textareas.
-No Claude API calls needed — this is a pure local feature.
-
-Not in scope:
-
-Automatic test execution (this is a manual checklist, not a test runner).
-Syncing state between devices (single-user app).
-Editing checklists from within the app (Claude Code owns the JSON).
 
 ### Feature: Inline Card Linking
 
@@ -290,6 +165,31 @@ Editing checklists from within the app (Claude Code owns the JSON).
 ## Ready for Testing
 
 *(Specs that have been implemented but not yet manually verified and deployed.)*
+
+### Feature: QA Checklist Tab — Implemented 2026-04-16
+Implemented as specced.
+- `db.js`: `qaState` table added (DB version bumped to 2). Helpers `getQAState`, `saveQAState`, `resetQAState` exported.
+- `context.jsx`: `getQAState`, `saveQAState`, `resetQAState` added as `useCallback` actions and exposed through context value.
+- `src/qa-checklists.json`: Created with two seed checklists — Profile Editing & Prompt Builder and QA Checklist Tab.
+- `src/components/QAChecklist.jsx`: Collapsible checklist card. Per-item checkbox + note toggle (auto-growing 16px textarea). General notes textarea at bottom. Export Report (markdown to clipboard) and Reset (confirmation dialog) buttons. Toast confirmation on copy.
+- `src/components/QA.jsx`: Tab component. Loads all checklist states from IndexedDB on mount. Passes state and callbacks to QAChecklist components. Empty state when no checklists.
+- `src/App.jsx`: QA tab added to nav with 📋 icon.
+- `CLAUDE.md`: "After Completing a Spec" standing instruction updated to include appending to `src/qa-checklists.json`.
+- Deviations: None.
+
+**Test checklist:**
+- [ ] QA tab appears in the nav bar with a 📋 icon → tapping it shows the QA screen
+- [ ] Two checklist cards appear: "Profile Editing & Prompt Builder" and "QA Checklist Tab"
+- [ ] Each card shows feature name, date, and "0/N checked" progress
+- [ ] Tap a checklist card → expands showing summary, deviations, items, general notes, Export/Reset buttons
+- [ ] Check off an item → progress counter updates
+- [ ] Switch to another tab and return → checked state is still there
+- [ ] Tap the ✎ note icon on an item → textarea expands below it, type a note → note is saved
+- [ ] Type in General Notes → saves (verify by leaving and returning)
+- [ ] Tap "Export Report" → toast says "Copied to clipboard", paste into a text editor to verify markdown format
+- [ ] Tap "Reset" → confirmation dialog appears → confirm → all checks and notes clear
+
+**Deploy after testing:** `npm run deploy`
 
 ### Feature: Profile Editing & Prompt Builder — Implemented 2026-04-14
 Implemented as specced.

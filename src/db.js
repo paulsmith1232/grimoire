@@ -11,6 +11,10 @@ db.version(1).stores({
   backups: 'id, createdAt',
 });
 
+db.version(2).stores({
+  qaState: 'checklistId',
+});
+
 // ── Default D&D profile ──
 export const DND_PROFILE = {
   id: 'dnd-5e',
@@ -281,6 +285,29 @@ export async function buildCardIndex(profileId) {
     category: category || '',
     summary: summary || '',
   }));
+}
+
+// ── QA state helpers ──
+export async function getQAState(checklistId) {
+  return db.qaState.get(checklistId);
+}
+
+export async function saveQAState(checklistId, stateData) {
+  await db.qaState.put({
+    checklistId,
+    itemStates: stateData.itemStates || {},
+    generalNotes: stateData.generalNotes || '',
+    lastModified: Date.now(),
+  });
+}
+
+export async function resetQAState(checklistId) {
+  await db.qaState.put({
+    checklistId,
+    itemStates: {},
+    generalNotes: '',
+    lastModified: Date.now(),
+  });
 }
 
 export default db;

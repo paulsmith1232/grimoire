@@ -7,12 +7,14 @@ import Profiles from './components/Profiles';
 import ProfileEditor from './components/ProfileEditor';
 import Tags from './components/Tags';
 import Settings from './components/Settings';
+import QA from './components/QA';
 
 const TABS = [
   { key: 'library', icon: '📚', label: 'Library' },
   { key: 'scan', icon: '📷', label: 'Scan' },
   { key: 'profiles', icon: '📐', label: 'Profiles' },
   { key: 'tags', icon: '🏷', label: 'Tags' },
+  { key: 'qa', icon: '📋', label: 'QA' },
   { key: 'settings', icon: '⚙', label: 'Settings' },
 ];
 
@@ -47,6 +49,8 @@ function AppInner() {
           : <Profiles />;
       case 'tags':
         return <Tags />;
+      case 'qa':
+        return <QA />;
       case 'settings':
         return <Settings />;
       default:
