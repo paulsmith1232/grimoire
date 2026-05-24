@@ -78,32 +78,6 @@ vite.config.js
 <files>
 This section contains the contents of the repository's files.
 
-<file path="repomix.config.json">
- 1: {
- 2:   "$schema": "https://repomix.com/schemas/latest/schema.json",
- 3:   "output": {
- 4:     "filePath": "repomix-output.xml",
- 5:     "style": "xml",
- 6:     "showLineNumbers": true,
- 7:     "removeComments": false
- 8:   },
- 9:   "ignore": {
-10:     "useGitignore": true,
-11:     "useDefaultPatterns": true,
-12:     "customPatterns": [
-13:       "package-lock.json",
-14:       "dist/**",
-15:       ".claude/**",
-16:       "public/*.png",
-17:       "public/*.jpg",
-18:       "public/*.svg",
-19:       "public/*.ico",
-20:       "repomix-output.xml"
-21:     ]
-22:   }
-23: }
-</file>
-
 <file path="src/components/CardDetail.jsx">
   1: import React, { useState, useMemo } from 'react';
   2: import { useApp } from '../context';
@@ -1769,34 +1743,30 @@ This section contains the contents of the repository's files.
 3: .claude/
 </file>
 
-<file path="package.json">
+<file path="repomix.config.json">
  1: {
- 2:   "name": "grimoire",
- 3:   "private": true,
- 4:   "version": "5.0.0",
- 5:   "type": "module",
- 6:   "scripts": {
- 7:     "dev": "vite",
- 8:     "build": "vite build",
- 9:     "preview": "vite preview",
-10:     "deploy": "vite build && gh-pages -d dist",
-11:     "context": "repomix --include-logs --include-logs-count 30"
-12:   },
-13:   "dependencies": {
-14:     "dexie": "^4.0.11",
-15:     "react": "^18.3.1",
-16:     "react-dom": "^18.3.1"
-17:   },
-18:   "devDependencies": {
-19:     "@types/react": "^18.3.12",
-20:     "@types/react-dom": "^18.3.1",
-21:     "@vitejs/plugin-react": "^4.3.4",
-22:     "gh-pages": "^6.3.0",
-23:     "repomix": "^1.14.0",
-24:     "vite": "^6.0.0",
-25:     "vite-plugin-pwa": "^0.21.1"
-26:   }
-27: }
+ 2:   "$schema": "https://repomix.com/schemas/latest/schema.json",
+ 3:   "output": {
+ 4:     "filePath": "repomix-output.xml",
+ 5:     "style": "xml",
+ 6:     "showLineNumbers": true,
+ 7:     "removeComments": false
+ 8:   },
+ 9:   "ignore": {
+10:     "useGitignore": true,
+11:     "useDefaultPatterns": true,
+12:     "customPatterns": [
+13:       "package-lock.json",
+14:       "dist/**",
+15:       ".claude/**",
+16:       "public/*.png",
+17:       "public/*.jpg",
+18:       "public/*.svg",
+19:       "public/*.ico",
+20:       "repomix-output.xml"
+21:     ]
+22:   }
+23: }
 </file>
 
 <file path="vite.config.js">
@@ -3043,6 +3013,36 @@ This section contains the contents of the repository's files.
 261: }
 </file>
 
+<file path="package.json">
+ 1: {
+ 2:   "name": "grimoire",
+ 3:   "private": true,
+ 4:   "version": "5.0.0",
+ 5:   "type": "module",
+ 6:   "scripts": {
+ 7:     "dev": "vite",
+ 8:     "build": "vite build",
+ 9:     "preview": "vite preview",
+10:     "deploy": "vite build && gh-pages -d dist",
+11:     "context": "repomix --include-logs --include-logs-count 30"
+12:   },
+13:   "dependencies": {
+14:     "dexie": "^4.0.11",
+15:     "react": "^18.3.1",
+16:     "react-dom": "^18.3.1"
+17:   },
+18:   "devDependencies": {
+19:     "@types/react": "^18.3.12",
+20:     "@types/react-dom": "^18.3.1",
+21:     "@vitejs/plugin-react": "^4.3.4",
+22:     "gh-pages": "^6.3.0",
+23:     "repomix": "^1.14.0",
+24:     "vite": "^6.0.0",
+25:     "vite-plugin-pwa": "^0.21.1"
+26:   }
+27: }
+</file>
+
 <file path="src/components/Scan.jsx">
   1: import React, { useState, useRef } from 'react';
   2: import { useApp } from '../context';
@@ -4030,6 +4030,16 @@ This section contains the contents of the repository's files.
 
 
 <git_logs>
+<git_log_commit>
+<date>2026-04-26 18:14:18 -0400</date>
+<message>Add repomix for codebase context snapshots</message>
+<files>
+package-lock.json
+package.json
+repomix-output.xml
+repomix.config.json
+</files>
+</git_log_commit>
 <git_log_commit>
 <date>2026-04-26 17:48:28 -0400</date>
 <message>Add QA Checklist Tab</message>
