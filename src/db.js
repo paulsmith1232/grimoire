@@ -1,7 +1,7 @@
 import Dexie from 'dexie';
 
 // ── Database setup ──
-const db = new Dexie('grimoire');
+const db = new Dexie(__GRIMOIRE_DB__);
 
 db.version(1).stores({
   cards: 'id, name, profileId, createdAt',
