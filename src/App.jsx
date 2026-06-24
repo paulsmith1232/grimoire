@@ -71,7 +71,12 @@ function AppInner() {
           <button
             key={t.key}
             className={'nav-btn' + (state.currentTab === t.key ? ' active' : '')}
-            onClick={() => dispatch({ type: 'SET_TAB', tab: t.key })}
+            onClick={() => {
+              dispatch({ type: 'SET_TAB', tab: t.key });
+              // Push a sentinel so the back button from any card visited after
+              // this tab-switch lands here (library list), not a previously viewed card.
+              history.pushState({ libraryRoot: true }, '');
+            }}
           >
             <div className="icon">{t.icon}</div>
             <div className="label">{t.label}</div>

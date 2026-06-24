@@ -24,6 +24,7 @@ const initialState = {
   filterTag: 'all',
   searchQuery: '',
   scanProfileId: '',
+  scanQueue: [],
 };
 
 function reducer(state, action) {
@@ -56,6 +57,8 @@ function reducer(state, action) {
       return { ...state, searchQuery: action.value };
     case 'SET_SCAN_PROFILE':
       return { ...state, scanProfileId: action.id };
+    case 'SET_SCAN_QUEUE':
+      return { ...state, scanQueue: action.queue };
     case 'EDIT_PROFILE':
       return { ...state, editingProfileId: action.id };
     case 'STOP_EDITING_PROFILE':
@@ -188,6 +191,10 @@ export function AppProvider({ children }) {
     dispatch({ type: 'SET_SCAN_PROFILE', id });
   }, []);
 
+  const setScanQueue = useCallback((queue) => {
+    dispatch({ type: 'SET_SCAN_QUEUE', queue });
+  }, []);
+
   // ── QA state actions ──
   const getQAState = useCallback(async (checklistId) => {
     return dbGetQAState(checklistId);
@@ -244,6 +251,7 @@ export function AppProvider({ children }) {
     removeTag: removeTagAction,
     setApiKey,
     setScanProfileId,
+    setScanQueue,
     reloadAll,
     navigateToCard,
     getQAState,
