@@ -204,7 +204,7 @@ export default function Scan() {
                         position: 'absolute', top: -6, right: -6,
                         width: 22, height: 22, borderRadius: '50%',
                         background: 'var(--bg-card)', border: '1px solid var(--border)',
-                        color: 'var(--text-dim)', fontSize: 13, lineHeight: 1,
+                        color: '#fff', fontSize: 13, lineHeight: 1,
                         cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         padding: 0,
                       }}
