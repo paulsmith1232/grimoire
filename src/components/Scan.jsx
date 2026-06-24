@@ -189,8 +189,30 @@ export default function Scan() {
           <input ref={galleryRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileSelect} />
 
           {queue.length > 0 && (
-            <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600, marginBottom: 12 }}>
-              {queue.length} photo{queue.length > 1 ? 's' : ''} queued
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', overflowX: 'auto', gap: 8, paddingBottom: 4 }}>
+                {queue.map((img, i) => (
+                  <div key={i} style={{ position: 'relative', flexShrink: 0 }}>
+                    <img
+                      src={`data:${img.mediaType};base64,${img.base64}`}
+                      alt={`Photo ${i + 1}`}
+                      style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, display: 'block', border: '1px solid var(--border)' }}
+                    />
+                    <button
+                      onClick={() => setQueue(queue.filter((_, j) => j !== i))}
+                      style={{
+                        position: 'absolute', top: -6, right: -6,
+                        width: 22, height: 22, borderRadius: '50%',
+                        background: 'var(--bg-card)', border: '1px solid var(--border)',
+                        color: 'var(--text-dim)', fontSize: 13, lineHeight: 1,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: 0,
+                      }}
+                      aria-label={`Remove photo ${i + 1}`}
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
