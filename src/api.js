@@ -81,7 +81,7 @@ export async function parseCardImage(images, apiKey, profile, opts = {}) {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-8',
       max_tokens: 2000,
       system: systemPrompt,
       messages: [
@@ -109,7 +109,7 @@ export async function sendChatMessage(messages, systemPrompt, apiKey, tools = []
   if (!apiKey) throw new Error('No API key configured');
 
   const body = {
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-opus-4-8',
     max_tokens: 4000,
     system: systemPrompt,
     messages,
