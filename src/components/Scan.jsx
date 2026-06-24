@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context';
 import { parseCardImage, parseBatchImages, resolveBatchLinks } from '../api';
 import { genId } from '../db';
@@ -6,13 +6,25 @@ import CropOverlay from './CropOverlay';
 import CardEditor from './CardEditor';
 import BatchReview from './BatchReview';
 
+// Queue survives app backgrounding / remounts via sessionStorage.
+const QUEUE_KEY = 'grimoire-scan-queue';
+
+function loadQueue() {
+  try {
+    const raw = sessionStorage.getItem(QUEUE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function Scan() {
   const { state, dispatch, addCard, setScanProfileId } = useApp();
   const [status, setStatus] = useState('idle'); // idle | cropping | processing | preview | batch-review | saved | error
   const [error, setError] = useState('');
   const [preview, setPreview] = useState(null);
   const [imgData, setImgData] = useState(null); // current image being cropped: { dataUrl, base64, mediaType }
-  const [queue, setQueue] = useState([]); // accumulated images: [{ base64, mediaType }]
+  const [queue, setQueue] = useState(loadQueue); // accumulated images: [{ base64, mediaType }]
   const [fullPageMode, setFullPageMode] = useState(false);
   const [scanInstructions, setScanInstructions] = useState('');
   const [showInstructions, setShowInstructions] = useState(false);
@@ -23,6 +35,19 @@ export default function Scan() {
   const galleryRef = useRef(null);
 
   const profile = state.profiles.find((p) => p.id === state.scanProfileId);
+
+  // Persist the queue so it survives app backgrounding and remounts.
+  useEffect(() => {
+    try {
+      if (queue.length > 0) {
+        sessionStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+      } else {
+        sessionStorage.removeItem(QUEUE_KEY);
+      }
+    } catch {
+      // sessionStorage quota exceeded — queue stays in memory only.
+    }
+  }, [queue]);
 
   async function handleFileSelect(e) {
     const file = e.target.files?.[0];

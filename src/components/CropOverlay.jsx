@@ -162,7 +162,6 @@ export default function CropOverlay({ imgDataUrl, onConfirm, onCancel }) {
   }
 
   function handleConfirm() {
-    if (regions.length === 0) return;
     const img = imgRef.current;
     const { dW, dH } = stateRef.current;
     const scaleX = img.naturalWidth / dW;
@@ -170,7 +169,8 @@ export default function CropOverlay({ imgDataUrl, onConfirm, onCancel }) {
 
     let images;
     if (fullPage) {
-      // Bake overlays onto full-size offscreen canvas
+      // Bake any region overlays onto a full-size offscreen canvas.
+      // With no regions, this sends the whole page untouched.
       const off = document.createElement('canvas');
       off.width = img.naturalWidth;
       off.height = img.naturalHeight;
@@ -185,6 +185,7 @@ export default function CropOverlay({ imgDataUrl, onConfirm, onCancel }) {
       }
       images = [{ base64: off.toDataURL('image/jpeg', 0.92).split(',')[1], mediaType: 'image/jpeg' }];
     } else {
+      if (regions.length === 0) return;
       images = regions.map((r) => {
         const off = document.createElement('canvas');
         off.width = Math.round(r.width * scaleX);
@@ -201,7 +202,9 @@ export default function CropOverlay({ imgDataUrl, onConfirm, onCancel }) {
     onConfirm(images, fullPage);
   }
 
-  const scanLabel = regions.length === 0 ? 'Scan Regions'
+  const scanLabel = fullPage
+    ? (regions.length === 0 ? 'Scan Full Page' : `Scan Full Page (${regions.length} highlight${regions.length > 1 ? 's' : ''})`)
+    : regions.length === 0 ? 'Scan Regions'
     : regions.length === 1 ? 'Scan 1 Region'
     : `Scan ${regions.length} Regions`;
 
@@ -227,13 +230,15 @@ export default function CropOverlay({ imgDataUrl, onConfirm, onCancel }) {
       <div className="crop-canvas-wrap">
         <canvas ref={canvasRef} style={{ display: 'block' }} />
         {regions.length === 0 && (
-          <div className="crop-hint">Draw rectangles to highlight regions</div>
+          <div className="crop-hint">
+            {fullPage ? 'Scan the whole page, or draw rectangles to highlight regions' : 'Draw rectangles to crop regions'}
+          </div>
         )}
       </div>
       <div style={{ padding: '12px 16px', background: 'var(--surface)', flexShrink: 0 }}>
         <button
           className="btn btn-primary btn-block"
-          disabled={regions.length === 0}
+          disabled={!fullPage && regions.length === 0}
           onClick={handleConfirm}
         >
           {scanLabel}
