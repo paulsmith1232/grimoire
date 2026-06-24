@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { AppProvider, useApp } from './context';
 import Library from './components/Library';
 import CardDetail from './components/CardDetail';
@@ -17,19 +17,6 @@ const TABS = [
   { key: 'qa', icon: '📋', label: 'QA' },
   { key: 'settings', icon: '⚙', label: 'Settings' },
 ];
-
-function TestPopup() {
-  const [visible, setVisible] = useState(true);
-  if (!visible) return null;
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--gold)', borderRadius: 12, padding: '28px 24px', maxWidth: 320, textAlign: 'center' }}>
-        <p style={{ margin: '0 0 20px', fontSize: 18 }}>hello, just testing 👋</p>
-        <button className="btn-primary" style={{ minWidth: 80 }} onClick={() => setVisible(false)}>Close</button>
-      </div>
-    </div>
-  );
-}
 
 function AppInner() {
   const { state, dispatch } = useApp();
@@ -73,7 +60,6 @@ function AppInner() {
 
   return (
     <div id="app">
-      <TestPopup />
       <div className="header">
         <h1><span>✦</span> Grimoire</h1>
       </div>

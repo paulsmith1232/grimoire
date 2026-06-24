@@ -49,6 +49,9 @@ export default function Library() {
 
   return (
     <div className="section fade-in">
+      <div style={{ textAlign: 'center', color: 'var(--gold)', padding: '8px 0', fontSize: 14 }}>
+        hello, just testing 👋
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
         <input
           type="search"
