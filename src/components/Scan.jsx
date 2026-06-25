@@ -84,8 +84,9 @@ export default function Scan() {
   }
 
   async function processBatchQueue() {
-    const payloadChars = queue.reduce((sum, img) => sum + img.base64.length, 0) + 4000;
-    const estimatedTokens = Math.round(payloadChars / 4);
+    // Vision token estimate: ~1600 tokens per image (Claude's vision pricing for typical phone photos)
+    // plus system prompt (~1500 tokens). This is approximate but much closer than byte-counting.
+    const estimatedTokens = queue.length * 1600 + 1500;
     if (estimatedTokens > 30000) {
       setTokenWarning(estimatedTokens);
       return;
@@ -112,7 +113,8 @@ export default function Scan() {
       setStatus('batch-review');
       setScanInstructions('');
     } catch (err) {
-      setError(err.message || "Couldn't parse images.");
+      const msg = err.message || "Couldn't parse images.";
+      setError(msg.includes('fetch') ? "Network error — request may be too large. Try fewer photos at once." : msg);
       setStatus('error');
     }
   }
