@@ -39,10 +39,15 @@ export default function Scan() {
     await new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
+        // Downscale to max 1500px on the long edge — phone cameras capture at 3000-4000px+
+        // which creates multi-MB payloads that fail in transit. 1500px is plenty for Claude
+        // to read printed text, and reduces payload by ~4-8x.
+        const MAX = 1500;
+        const scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext('2d').drawImage(img, 0, 0);
+        canvas.width = Math.round(img.naturalWidth * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(url);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         setImgData({ dataUrl, base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' });
