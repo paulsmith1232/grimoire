@@ -7,7 +7,7 @@ import CardEditor from './CardEditor';
 import BatchReview from './BatchReview';
 
 export default function Scan() {
-  const { state, dispatch, addCard, setScanProfileId, setScanQueue } = useApp();
+  const { state, dispatch, addCard, saveCard, setScanProfileId, setScanQueue } = useApp();
   const [status, setStatus] = useState('idle'); // idle | cropping | processing | preview | batch-review | saved | error
   const [error, setError] = useState('');
   const [preview, setPreview] = useState(null);
@@ -15,7 +15,8 @@ export default function Scan() {
   const [fullPageMode, setFullPageMode] = useState(false);
   const [scanInstructions, setScanInstructions] = useState('');
   const [showInstructions, setShowInstructions] = useState(false);
-  const [batchCards, setBatchCards] = useState([]);
+  const [batchNew, setBatchNew] = useState([]);
+  const [batchUpdates, setBatchUpdates] = useState([]);
   const [batchUsage, setBatchUsage] = useState(null);
   const [tokenWarning, setTokenWarning] = useState(null);
   const cameraRef = useRef(null);
@@ -116,7 +117,31 @@ export default function Scan() {
         sections: c.sections || [],
       }));
       resolveBatchLinks(stamped, existingCards);
-      setBatchCards(stamped);
+
+      // Split into new cards vs updates to existing cards (name match, case-insensitive)
+      const existingByName = {};
+      for (const ec of existingCards) {
+        if (ec.name) existingByName[ec.name.toLowerCase()] = ec;
+      }
+      const newCards = [];
+      const updateItems = [];
+      for (const card of stamped) {
+        const match = existingByName[card.name.toLowerCase()];
+        if (match) {
+          // Find the full existing card from state
+          const fullExisting = state.cards.find((c) => c.id === match.id);
+          if (fullExisting) {
+            updateItems.push({ incomingCard: card, existingCard: fullExisting });
+          } else {
+            newCards.push(card);
+          }
+        } else {
+          newCards.push(card);
+        }
+      }
+
+      setBatchNew(newCards);
+      setBatchUpdates(updateItems);
       setBatchUsage(usage);
       setStatus('batch-review');
       setScanInstructions('');
@@ -134,7 +159,8 @@ export default function Scan() {
     setImgData(null);
     setQueue([]);
     setFullPageMode(false);
-    setBatchCards([]);
+    setBatchNew([]);
+    setBatchUpdates([]);
     setBatchUsage(null);
     setTokenWarning(null);
   }
@@ -327,7 +353,9 @@ export default function Scan() {
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
           <div style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600, marginBottom: 20 }}>
-            {batchCards.length > 0 ? `${batchCards.length} cards saved!` : 'Card saved!'}
+            {(batchNew.length + batchUpdates.length) > 0
+            ? `${batchNew.length + batchUpdates.length} card${batchNew.length + batchUpdates.length !== 1 ? 's' : ''} saved!`
+            : 'Card saved!'}
           </div>
           <button className="btn" style={{ width: '100%', marginBottom: 10 }} onClick={reset}>Scan Another</button>
           <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { reset(); dispatch({ type: 'SET_TAB', tab: 'library' }); }}>Go to Library</button>
@@ -352,12 +380,40 @@ export default function Scan() {
       {/* Batch review */}
       {status === 'batch-review' && (
         <BatchReview
-          cards={batchCards}
-          profileId={state.scanProfileId}
+          newCards={batchNew}
+          updateItems={batchUpdates}
           usage={batchUsage}
-          onSave={async (selected) => {
-            for (const card of selected) {
+          onSave={async ({ newCards, updates }) => {
+            for (const card of newCards) {
               await addCard(card);
+            }
+            for (const { existingCard, incomingCard, sectionChoices } of updates) {
+              const merged = { ...existingCard };
+              const existingSections = [...(existingCard.sections || [])];
+              for (const sec of incomingCard.sections || []) {
+                const choice = sectionChoices[sec.name] || 'append';
+                const existingIdx = existingSections.findIndex((s) => s.name === sec.name);
+                if (choice === 'keep') {
+                  // leave existing section untouched
+                } else if (choice === 'replace' || existingIdx === -1) {
+                  if (existingIdx !== -1) existingSections[existingIdx] = sec;
+                  else existingSections.push(sec);
+                } else if (choice === 'append') {
+                  if (existingIdx !== -1) {
+                    const existing = existingSections[existingIdx];
+                    if (existing.type === 'text' && sec.content) {
+                      existingSections[existingIdx] = { ...existing, content: existing.content + '\n\n' + sec.content };
+                    } else if (existing.type === 'key-value' && sec.keyValues) {
+                      existingSections[existingIdx] = { ...existing, keyValues: { ...existing.keyValues, ...sec.keyValues } };
+                    }
+                  } else {
+                    existingSections.push(sec);
+                  }
+                }
+              }
+              merged.sections = existingSections;
+              if (incomingCard.summary && !existingCard.summary) merged.summary = incomingCard.summary;
+              await saveCard(merged);
             }
             setStatus('saved');
           }}
