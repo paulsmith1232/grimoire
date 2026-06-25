@@ -295,6 +295,22 @@ syncing change notes between devices.
 
 *(Specs that have been implemented but not yet manually verified and deployed.)*
 
+### Feature: Wiki Granularity + Home Card — Implemented 2026-06-25
+From the wiki-direction planning discussion (Model B). Two changes:
+- **Batch granularity + cross-scan linking** (`api.js`, `Scan.jsx`): `parseBatchImages` prompt rewritten so each proper-named spell/feature/ability/item/subclass becomes its own card, with an overview card linking to its sub-parts rather than inlining them. `parseBatchImages` and `resolveBatchLinks` now take an `existingCards` index (`buildCardIndex(profileId)`); new cards link to and avoid duplicating cards already in the wiki. `Scan.runBatch` passes the index through.
+- **Per-profile home card** (`db.js` model, `ProfileEditor.jsx`, `Library.jsx`): profiles gain an optional `homeCardId` set via a selector in ProfileEditor. The card is pinned at the top of the Library with a ⌂ marker and excluded from the normal list. No DB schema bump — `homeCardId` is just a property on the profile object.
+- Deviations: None.
+
+**Test checklist:**
+- [ ] Scan a class page with several named features via Generate Wiki → each named feature/spell becomes its own card, not one lumped card
+- [ ] An overview card for the parent subject links to the sub-cards with tappable gold terms
+- [ ] Run a second Generate Wiki scan in the same profile → new cards link to cards from the first scan instead of duplicating them
+- [ ] Open a profile → set Home / Index Card → that card appears pinned at the top of the Library with a ⌂ marker
+- [ ] The pinned home card does not also appear in the normal list below
+- [ ] Set Home / Index Card back to None → pinned card returns to the normal list
+
+**Deploy after testing:** `npm run deploy`
+
 ### Feature: Inline Card Linking — Implemented 2026-05-24
 Implemented as specced.
 - `src/linking.js`: `parseLinks()`, `segmentText()`, `insertLink()`, `removeLink()`, `stripLinks()`, `computeReverseLinks()`, `getOutgoingLinks()` implemented.

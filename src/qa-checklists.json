@@ -1,6 +1,22 @@
 {
   "checklists": [
     {
+      "id": "wiki-granularity-home-card-2026-06-25",
+      "featureName": "Wiki Granularity + Home Card",
+      "implementedDate": "2026-06-25",
+      "summary": "Generate Wiki batch scan now creates a separate card for every named spell/feature/ability/item plus an overview card linking to them, and links new cards to existing ones via buildCardIndex (cross-scan linking). Profiles gain a homeCardId pinned at the top of the Library.",
+      "deviations": "None.",
+      "items": [
+        { "id": "1", "text": "Scan a class page with several named features via Generate Wiki → each named feature/spell becomes its own card, not one lumped card" },
+        { "id": "2", "text": "An overview card for the parent subject links to the sub-cards with tappable gold terms" },
+        { "id": "3", "text": "Run a second Generate Wiki scan in the same profile → new cards link to cards from the first scan instead of duplicating them" },
+        { "id": "4", "text": "Open a profile → set Home / Index Card to one of its cards → that card appears pinned at the top of the Library with a ⌂ marker" },
+        { "id": "5", "text": "The pinned home card does not also appear in the normal list below" },
+        { "id": "6", "text": "Set Home / Index Card back to None → pinned card returns to the normal list" }
+      ],
+      "generalNotes": ""
+    },
+    {
       "id": "profile-editing-2026-04-14",
       "featureName": "Profile Editing & Prompt Builder",
       "implementedDate": "2026-04-14",
