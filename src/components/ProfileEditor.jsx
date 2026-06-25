@@ -131,6 +131,23 @@ export default function ProfileEditor() {
           d.fields.push({ key: '', label: '' });
         })}>+ Add Field</button>
 
+      {/* Home / Index card — the entry point for this profile's wiki */}
+      <div className="edit-field" style={{ marginTop: 16 }}>
+        <label>Home / Index Card</label>
+        <select
+          value={draft.homeCardId || ''}
+          onChange={(e) => update((d) => { d.homeCardId = e.target.value || null; })}
+        >
+          <option value="">None</option>
+          {state.cards
+            .filter((c) => c.profileId === draft.id)
+            .map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+          Pinned to the top of the Library as this wiki's entry point.
+        </p>
+      </div>
+
       {/* Additional Instructions */}
       <div className="edit-field" style={{ marginTop: 16 }}>
         <label>Additional Instructions</label>

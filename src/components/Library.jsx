@@ -28,6 +28,11 @@ export default function Library() {
     return true;
   });
 
+  // Home/index cards — entry points pinned above the normal list, never duplicated below.
+  const homeCardIds = new Set(profiles.map((p) => p.homeCardId).filter(Boolean));
+  const homeCards = filtered.filter((c) => homeCardIds.has(c.id));
+  const listCards = filtered.filter((c) => !homeCardIds.has(c.id));
+
   function getProfile(id) {
     return profiles.find((p) => p.id === id);
   }
@@ -105,6 +110,37 @@ export default function Library() {
         </div>
       )}
 
+      {/* Home / index cards — pinned entry points */}
+      {homeCards.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+          {homeCards.map((card) => {
+            const profile = getProfile(card.profileId);
+            const color = profile?.color || 'var(--accent)';
+            return (
+              <button
+                key={card.id}
+                className="card-preview"
+                style={{ borderLeft: `3px solid ${color}`, background: 'var(--accent-glow)', border: '1px solid var(--accent)' }}
+                onClick={() => navigateToCard(card.id, true)}
+              >
+                <div className="card-preview-header">
+                  <h3>
+                    <span style={{ color: 'var(--accent)', marginRight: 6 }}>⌂</span>
+                    {card.name}
+                  </h3>
+                  {profile && (
+                    <span className="type-badge sm" style={{ background: color + '22', color, border: `1px solid ${color}55` }}>
+                      {profile.icon} {profile.name}
+                    </span>
+                  )}
+                </div>
+                {card.summary && <div className="desc">{card.summary}</div>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Card grid/list */}
       {filtered.length === 0 ? (
         <div className="empty-state">
@@ -114,7 +150,7 @@ export default function Library() {
         </div>
       ) : cols === 1 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
-          {filtered.map((card) => {
+          {listCards.map((card) => {
             const profile = getProfile(card.profileId);
             const color = profile?.color || '#7d8590';
             const meta = getPreviewMeta(card);
@@ -150,7 +186,7 @@ export default function Library() {
         </div>
       ) : cols === 2 ? (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 14 }}>
-          {filtered.map((card) => {
+          {listCards.map((card) => {
             const profile = getProfile(card.profileId);
             const color = profile?.color || '#7d8590';
             return (
@@ -172,7 +208,7 @@ export default function Library() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginTop: 14 }}>
-          {filtered.map((card) => {
+          {listCards.map((card) => {
             const profile = getProfile(card.profileId);
             const color = profile?.color || '#7d8590';
             const text = getPreviewText(card);
