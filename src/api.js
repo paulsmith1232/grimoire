@@ -182,7 +182,7 @@ General rules:
     },
     body: JSON.stringify({
       model: 'claude-opus-4-8',
-      max_tokens: 8000,
+      max_tokens: 16000,
       system: systemPrompt,
       messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: userPrompt }] }],
     }),
@@ -194,8 +194,19 @@ General rules:
   }
 
   const data = await res.json();
-  const text = (data.content || []).map((b) => b.text || '').join('');
-  const cards = JSON.parse(text.replace(/```json|```/g, '').trim());
+  let text = (data.content || []).map((b) => b.text || '').join('');
+
+  // Strip markdown fences if present
+  text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+  // If response was cut off (max_tokens hit), trim to last valid complete object
+  if (data.stop_reason === 'max_tokens') {
+    const lastClose = text.lastIndexOf('}');
+    if (lastClose !== -1) text = text.slice(0, lastClose + 1) + ']';
+    if (!text.startsWith('[')) text = '[' + text;
+  }
+
+  const cards = JSON.parse(text);
   if (!Array.isArray(cards)) throw new Error('Unexpected response format from batch scan');
   return { cards, usage: data.usage };
 }
