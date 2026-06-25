@@ -182,7 +182,7 @@ General rules:
     },
     body: JSON.stringify({
       model: 'claude-opus-4-8',
-      max_tokens: 16000,
+      max_tokens: Math.min(images.length * 3000 + 4000, 16000),
       system: systemPrompt,
       messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: userPrompt }] }],
     }),

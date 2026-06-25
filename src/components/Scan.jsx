@@ -120,7 +120,7 @@ export default function Scan() {
       setScanInstructions('');
     } catch (err) {
       const msg = err.message || "Couldn't parse images.";
-      setError(msg.includes('fetch') ? "Network error — request may be too large. Try fewer photos at once." : msg);
+      setError(msg);
       setStatus('error');
     }
   }
