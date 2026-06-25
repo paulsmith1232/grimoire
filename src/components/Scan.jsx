@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context';
 import { parseCardImage, parseBatchImages, resolveBatchLinks } from '../api';
-import { genId } from '../db';
+import { genId, buildCardIndex } from '../db';
 import CropOverlay from './CropOverlay';
 import CardEditor from './CardEditor';
 import BatchReview from './BatchReview';
@@ -103,7 +103,8 @@ export default function Scan() {
     setTokenWarning(null);
     setStatus('processing');
     try {
-      const { cards, usage } = await parseBatchImages(queue, state.apiKey, profile, state.tags, {});
+      const existingCards = await buildCardIndex(state.scanProfileId);
+      const { cards, usage } = await parseBatchImages(queue, state.apiKey, profile, state.tags, existingCards, {});
       const stamped = cards.map((c) => ({
         ...c,
         id: genId(),
@@ -112,7 +113,7 @@ export default function Scan() {
         createdAt: Date.now(),
         sections: c.sections || [],
       }));
-      resolveBatchLinks(stamped);
+      resolveBatchLinks(stamped, existingCards);
       setBatchCards(stamped);
       setBatchUsage(usage);
       setStatus('batch-review');

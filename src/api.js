@@ -105,7 +105,9 @@ export async function parseCardImage(images, apiKey, profile, opts = {}) {
 
 // ── Parse multiple cards from a batch of images ──
 // Returns { cards: [...], usage } where cards have [[Title]] links pre-resolved to [[id|Title]].
-export async function parseBatchImages(images, apiKey, profile, existingTags = [], opts = {}) {
+// existingCards: lightweight index [{ id, name, summary }] of cards already in this profile,
+// so the scan can link new cards to existing ones (cross-scan linking).
+export async function parseBatchImages(images, apiKey, profile, existingTags = [], existingCards = [], opts = {}) {
   if (!apiKey) throw new Error('No API key configured');
   if (!profile) throw new Error('No scan profile selected');
 
@@ -118,7 +120,11 @@ export async function parseBatchImages(images, apiKey, profile, existingTags = [
   const tagList = existingTags.length > 0 ? existingTags.map((t) => `"${t}"`).join(', ') : 'none yet';
   const additionalInstructions = profile.additionalInstructions || profile.scanInstructions || '';
 
-  const systemPrompt = `You are a reference card parser building a wiki from photos. Extract EVERY distinct named subject visible across all provided images and return ONLY valid JSON — no markdown, no backticks, no preamble.
+  const existingCardList = existingCards.length > 0
+    ? existingCards.map((c) => `"${c.name}"`).join(', ')
+    : 'none yet';
+
+  const systemPrompt = `You are a reference card parser building a cross-linked wiki from photos. Break the page down into the SMALLEST meaningful, independently-referenceable entries and return ONLY valid JSON — no markdown, no backticks, no preamble.
 
 Return a JSON array where each element has this shape:
 {
@@ -141,15 +147,22 @@ Profile fields (use these as section names, in order): ${fieldLabels || 'Name, D
 
 ${additionalInstructions}
 
+Granularity rules (IMPORTANT — this is what makes the wiki useful):
+- Create a SEPARATE card for EVERY proper-named thing that could be referenced from elsewhere: each named spell, named ability, named feature, named item, named subclass/archetype, named creature, named location, etc.
+- Do NOT lump a whole class, chapter, or page into one giant card. If a page describes a class with five named features and a spell list, that is one overview card PLUS one card per named feature PLUS one card per named spell.
+- When a subject is an overview/parent (e.g. a class), make a card for it whose sections describe it generally and LINK to its named sub-parts, rather than inlining all their full text.
+- Descriptive prose with no proper name of its own stays as a section inside its parent card — do not invent cards for unnamed paragraphs.
+
 Category / tag rules:
 - The app has these existing tags: [${tagList}]. Assign each card 0-3 tags from this list that fit. Only use tags from this list — do not invent new ones.
 
 Linking rules:
-- When one card's description or sections reference another subject that also has its own card in this batch, write the reference as [[Subject Name]] (double square brackets, exact name match).
-- Do not link to subjects that don't have their own card.
+- Whenever a card's text references another subject that has its own card — whether newly created in THIS batch or already existing — write the reference as [[Subject Name]] (double square brackets, exact name match).
+- Cards already in this wiki (link to these by exact name when referenced; do NOT recreate them): [${existingCardList}].
+- Do not link to subjects that have no card.
 
 General rules:
-- One array element per distinct subject. If two images show the same subject, merge them into one card.
+- If two images show the same subject, merge them into one card. If a subject already exists in the wiki list above, do not duplicate it — reference it with a link instead.
 - For structured data (stats, properties): use type "key-value".
 - For prose text: use type "text".
 - summary: one sentence under 15 words capturing what this entry is.
@@ -189,8 +202,10 @@ General rules:
 
 // ── Resolve [[Title]] links within a batch of cards ──
 // Mutates section text in place: [[Title]] → [[id|Title]] where title matches a card name.
-export function resolveBatchLinks(cards) {
+// existingCards: prior cards in the wiki [{ id, name }] so new cards can link to them too.
+export function resolveBatchLinks(cards, existingCards = []) {
   const titleToId = {};
+  existingCards.forEach((c) => { if (c.name) titleToId[c.name.toLowerCase()] = c.id; });
   cards.forEach((c) => { titleToId[c.name.toLowerCase()] = c.id; });
 
   function resolve(text) {
