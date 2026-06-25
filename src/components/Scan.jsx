@@ -103,7 +103,9 @@ export default function Scan() {
     setTokenWarning(null);
     setStatus('processing');
     try {
-      const existingCards = await buildCardIndex(state.scanProfileId);
+      // Index cards from all profiles so new cards can link across profiles
+      // (e.g. a character-profile card linking to a D&D 5e rulebook card).
+      const existingCards = await buildCardIndex(state.profiles.map((p) => p.id));
       const { cards, usage } = await parseBatchImages(queue, state.apiKey, profile, state.tags, existingCards, {});
       const stamped = cards.map((c) => ({
         ...c,

@@ -273,16 +273,23 @@ export function genId() {
 }
 
 // ── Card index for connection discovery ──
-// Returns lightweight { id, name, category, summary } for all cards in a profile.
-// Pass null/undefined to get index across all profiles.
-export async function buildCardIndex(profileId) {
-  const cards = profileId
-    ? await db.cards.where('profileId').equals(profileId).toArray()
-    : await db.cards.toArray();
-  return cards.map(({ id, name, category, summary }) => ({
+// profileIds: string | string[] | null/undefined
+// - string: cards from that one profile
+// - string[]: cards from all listed profiles (cross-profile linking)
+// - null/undefined: all cards
+export async function buildCardIndex(profileIds) {
+  let cards;
+  if (!profileIds) {
+    cards = await db.cards.toArray();
+  } else {
+    const ids = Array.isArray(profileIds) ? profileIds : [profileIds];
+    const results = await Promise.all(ids.map((id) => db.cards.where('profileId').equals(id).toArray()));
+    cards = results.flat();
+  }
+  return cards.map(({ id, name, profileId, summary }) => ({
     id,
     name: name || '',
-    category: category || '',
+    profileId: profileId || '',
     summary: summary || '',
   }));
 }

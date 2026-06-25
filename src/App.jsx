@@ -14,7 +14,6 @@ const TABS = [
   { key: 'scan', icon: '📷', label: 'Scan' },
   { key: 'profiles', icon: '📐', label: 'Profiles' },
   { key: 'tags', icon: '🏷', label: 'Tags' },
-  { key: 'qa', icon: '📋', label: 'QA' },
   { key: 'settings', icon: '⚙', label: 'Settings' },
 ];
 
