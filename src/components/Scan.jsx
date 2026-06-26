@@ -387,31 +387,16 @@ export default function Scan() {
             for (const card of newCards) {
               await addCard(card);
             }
-            for (const { existingCard, incomingCard, sectionChoices } of updates) {
-              const merged = { ...existingCard };
-              const existingSections = [...(existingCard.sections || [])];
-              for (const sec of incomingCard.sections || []) {
-                const choice = sectionChoices[sec.name] || 'append';
-                const existingIdx = existingSections.findIndex((s) => s.name === sec.name);
-                if (choice === 'keep') {
-                  // leave existing section untouched
-                } else if (choice === 'replace' || existingIdx === -1) {
-                  if (existingIdx !== -1) existingSections[existingIdx] = sec;
-                  else existingSections.push(sec);
-                } else if (choice === 'append') {
-                  if (existingIdx !== -1) {
-                    const existing = existingSections[existingIdx];
-                    if (existing.type === 'text' && sec.content) {
-                      existingSections[existingIdx] = { ...existing, content: existing.content + '\n\n' + sec.content };
-                    } else if (existing.type === 'key-value' && sec.keyValues) {
-                      existingSections[existingIdx] = { ...existing, keyValues: { ...existing.keyValues, ...sec.keyValues } };
-                    }
-                  } else {
-                    existingSections.push(sec);
-                  }
-                }
-              }
-              merged.sections = existingSections;
+            for (const { existingCard, incomingCard } of updates) {
+              // Claude was instructed to only return new sections — append them.
+              // Sections whose name already exists on the card are skipped to avoid duplicates.
+              const existingNames = new Set((existingCard.sections || []).map((s) => s.name));
+              const toAdd = (incomingCard.sections || []).filter((s) => !existingNames.has(s.name));
+              if (toAdd.length === 0 && existingCard.summary) continue;
+              const merged = {
+                ...existingCard,
+                sections: [...(existingCard.sections || []), ...toAdd],
+              };
               if (incomingCard.summary && !existingCard.summary) merged.summary = incomingCard.summary;
               await saveCard(merged);
             }

@@ -286,11 +286,12 @@ export async function buildCardIndex(profileIds) {
     const results = await Promise.all(ids.map((id) => db.cards.where('profileId').equals(id).toArray()));
     cards = results.flat();
   }
-  return cards.map(({ id, name, profileId, summary }) => ({
+  return cards.map(({ id, name, profileId, summary, sections }) => ({
     id,
     name: name || '',
     profileId: profileId || '',
     summary: summary || '',
+    sections: (sections || []).map((s) => s.name).filter(Boolean),
   }));
 }
 

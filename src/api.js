@@ -120,8 +120,13 @@ export async function parseBatchImages(images, apiKey, profile, existingTags = [
   const tagList = existingTags.length > 0 ? existingTags.map((t) => `"${t}"`).join(', ') : 'none yet';
   const additionalInstructions = profile.additionalInstructions || profile.scanInstructions || '';
 
+  // Build a concise list of existing cards with their section names so Claude
+  // knows what's already captured and won't re-emit duplicate content.
   const existingCardList = existingCards.length > 0
-    ? existingCards.map((c) => `"${c.name}"`).join(', ')
+    ? existingCards.map((c) => {
+        const secs = c.sections?.length ? ` (sections already captured: ${c.sections.join(', ')})` : '';
+        return `"${c.name}"${secs}`;
+      }).join('\n- ')
     : 'none yet';
 
   const systemPrompt = `You are a reference card parser building a cross-linked wiki from photos. Break the page down into the SMALLEST meaningful, independently-referenceable entries and return ONLY valid JSON — no markdown, no backticks, no preamble.
@@ -158,7 +163,8 @@ Category / tag rules:
 
 Linking rules:
 - Whenever a card's text references another subject that has its own card — whether newly created in THIS batch or already existing — write the reference as [[Subject Name]] (double square brackets, exact name match).
-- Cards already in this wiki (link to these by exact name when referenced; do NOT recreate them): [${existingCardList}].
+- Cards already in this wiki — link to them by name but do NOT recreate them. If you generate content for an existing card, include ONLY sections containing genuinely NEW information not covered by the sections already captured:
+- ${existingCardList}
 - Do not link to subjects that have no card.
 
 General rules:
