@@ -245,6 +245,51 @@ export function resolveBatchLinks(cards, existingCards = []) {
   });
 }
 
+// ── Refine a single card: consolidate redundant/paraphrased text via Claude ──
+// Returns { sections, usage }. Preserves [[id|text]] link markup and distinct info.
+export async function refineCard(card, apiKey) {
+  if (!apiKey) throw new Error('No API key configured');
+
+  const sectionsJson = JSON.stringify(card.sections || [], null, 2);
+
+  const systemPrompt = `You are editing one reference card's content to remove redundancy. You will receive a JSON array of the card's sections. Return ONLY a JSON array of the same shape with redundant information consolidated.
+
+Rules:
+- Preserve every DISTINCT fact. Only remove text that repeats information already stated elsewhere in the card, including paraphrases and reworded restatements of the same thing.
+- Keep the same section names, "type" values, and order. If a section becomes empty after consolidation, omit it.
+- Preserve link markup EXACTLY: tokens of the form [[id|text]] must be kept verbatim, including the id. Never alter, invent, or drop a link.
+- This is deduplication, not rewriting — do not change style, tone, or add new facts.
+- Return key-value sections unchanged.
+- Return ONLY the JSON array — no markdown, no backticks, no preamble.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `Card name: ${card.name}\n\nSections:\n${sectionsJson}` }],
+    }),
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e?.error?.message || 'API error: ' + res.status);
+  }
+
+  const data = await res.json();
+  const text = (data.content || []).map((b) => b.text || '').join('');
+  const sections = JSON.parse(text.replace(/```json|```/g, '').trim());
+  if (!Array.isArray(sections)) throw new Error('Unexpected response format from refine');
+  return { sections, usage: data.usage };
+}
+
 // ── Chat message send ──
 // messages: Anthropic-format array (role/content). tools: optional array of tool defs.
 export async function sendChatMessage(messages, systemPrompt, apiKey, tools = []) {

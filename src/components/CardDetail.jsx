@@ -3,12 +3,14 @@ import { useApp } from '../context';
 import LinkedText from './LinkedText';
 import CardEditor from './CardEditor';
 import { computeReverseLinks } from '../linking';
-import { dedupeCard } from '../cleanup';
+import { refineCard } from '../api';
 
 export default function CardDetail() {
   const { state, dispatch, saveCard, removeCard, navigateToCard } = useApp();
   const card = state.cards.find((c) => c.id === state.selectedCardId);
   const [tagOpen, setTagOpen] = useState(false);
+  const [refining, setRefining] = useState(false);
+  const [refinePreview, setRefinePreview] = useState(null); // { sections, usage }
 
   const reverseLinks = useMemo(() => {
     if (!card) return [];
@@ -47,6 +49,58 @@ export default function CardDetail() {
     await saveCard({ ...card, tags: updated });
   }
 
+  async function handleRefine() {
+    if (!state.apiKey) { alert('Add your Anthropic API key in Settings to refine cards.'); return; }
+    setRefining(true);
+    try {
+      const { sections: refined, usage } = await refineCard(card, state.apiKey);
+      setRefinePreview({ sections: refined, usage });
+    } catch (e) {
+      alert(e.message || 'Refine failed.');
+    } finally {
+      setRefining(false);
+    }
+  }
+
+  // Refine preview mode — show the consolidated version for review before applying
+  if (refinePreview) {
+    const previewSections = [...refinePreview.sections].sort((a, b) => (a.priority || 99) - (b.priority || 99));
+    return (
+      <div className="section fade-in">
+        <button className="back-btn" onClick={() => setRefinePreview(null)}>← Discard</button>
+        <div className="detail-card" style={{ borderTop: `3px solid ${color}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+            Refined preview — review before applying
+          </div>
+          <h2 style={{ marginBottom: 14 }}>{card.name}</h2>
+          {previewSections.map((sec, i) => {
+            const hasContent = sec.content || (sec.keyValues && Object.keys(sec.keyValues).length);
+            if (!hasContent) return null;
+            return sec.priority <= 2
+              ? <ExpandedSection key={i} sec={sec} />
+              : <CollapsibleSection key={i} sec={sec} />;
+          })}
+          {refinePreview.usage && (
+            <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text-dim)' }}>
+              ~{refinePreview.usage.input_tokens?.toLocaleString()} input · ~{refinePreview.usage.output_tokens?.toLocaleString()} output tokens
+            </div>
+          )}
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 16 }}
+            onClick={async () => {
+              await saveCard({ ...card, sections: refinePreview.sections });
+              setRefinePreview(null);
+            }}
+          >Apply Refined Version</button>
+          <button className="btn btn-block" style={{ marginTop: 8 }} onClick={() => setRefinePreview(null)}>
+            Discard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="section fade-in">
       <button className="back-btn" onClick={() => dispatch({ type: 'DESELECT_CARD' })}>← Back</button>
@@ -69,14 +123,10 @@ export default function CardDetail() {
             >{card.favorite ? '★' : '☆'}</button>
             <button
               className="btn btn-secondary btn-sm icon-btn"
-              title="Remove duplicated paragraphs"
-              onClick={async () => {
-                const { card: cleaned, removed } = dedupeCard(card);
-                if (removed === 0) { alert('No duplicate text found.'); return; }
-                await saveCard(cleaned);
-                alert(`Removed ${removed} duplicate paragraph${removed !== 1 ? 's' : ''}.`);
-              }}
-            >⟲</button>
+              title="Refine — consolidate redundant text with AI"
+              disabled={refining}
+              onClick={handleRefine}
+            >{refining ? '…' : '✦'}</button>
             <button
               className="btn btn-secondary btn-sm icon-btn"
               title="Edit card"
