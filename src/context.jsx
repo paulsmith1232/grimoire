@@ -7,6 +7,7 @@ import {
   migrateFromLocalStorage, createBackup, DND_PROFILE, genId,
   getQAState as dbGetQAState, saveQAState as dbSaveQAState, resetQAState as dbResetQAState,
 } from './db';
+import { dedupeCard } from './cleanup';
 
 const AppContext = createContext(null);
 
@@ -230,6 +231,26 @@ export function AppProvider({ children }) {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  // ── Maintenance: remove duplicated paragraphs across all cards ──
+  // Returns { cardsChanged, paragraphsRemoved }.
+  const cleanupDuplicates = useCallback(async () => {
+    const cards = await getAllCards();
+    let cardsChanged = 0;
+    let paragraphsRemoved = 0;
+    for (const card of cards) {
+      const { card: cleaned, removed } = dedupeCard(card);
+      if (removed > 0) {
+        await putCard(cleaned);
+        cardsChanged++;
+        paragraphsRemoved += removed;
+      }
+    }
+    if (cardsChanged > 0) {
+      dispatch({ type: 'SET_CARDS', cards: await getAllCards() });
+    }
+    return { cardsChanged, paragraphsRemoved };
+  }, []);
+
   // ── Reload all data (after import) ──
   const reloadAll = useCallback(async () => {
     const [cards, profiles, tags] = await Promise.all([
@@ -252,6 +273,7 @@ export function AppProvider({ children }) {
     setApiKey,
     setScanProfileId,
     setScanQueue,
+    cleanupDuplicates,
     reloadAll,
     navigateToCard,
     getQAState,

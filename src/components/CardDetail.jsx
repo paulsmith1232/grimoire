@@ -3,6 +3,7 @@ import { useApp } from '../context';
 import LinkedText from './LinkedText';
 import CardEditor from './CardEditor';
 import { computeReverseLinks } from '../linking';
+import { dedupeCard } from '../cleanup';
 
 export default function CardDetail() {
   const { state, dispatch, saveCard, removeCard, navigateToCard } = useApp();
@@ -55,6 +56,16 @@ export default function CardDetail() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
           <h2>{card.name}</h2>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              title="Remove duplicated paragraphs"
+              onClick={async () => {
+                const { card: cleaned, removed } = dedupeCard(card);
+                if (removed === 0) { alert('No duplicate text found.'); return; }
+                await saveCard(cleaned);
+                alert(`Removed ${removed} duplicate paragraph${removed !== 1 ? 's' : ''}.`);
+              }}
+            >⟲ Clean</button>
             <button className="btn btn-secondary btn-sm" onClick={() => dispatch({ type: 'EDIT_CARD', id: card.id })}>✎ Edit</button>
             {profile && (
               <span className="type-badge" style={{ background: color + '22', color, border: `1px solid ${color}55` }}>

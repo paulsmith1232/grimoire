@@ -4,8 +4,17 @@ import { exportToJSON, importFromJSON, createBackup, DND_PROFILE } from '../db';
 import db from '../db';
 
 export default function Settings() {
-  const { state, setApiKey, reloadAll } = useApp();
+  const { state, setApiKey, reloadAll, cleanupDuplicates } = useApp();
   const fileRef = useRef(null);
+
+  async function handleCleanup() {
+    const { cardsChanged, paragraphsRemoved } = await cleanupDuplicates();
+    if (cardsChanged === 0) {
+      alert('No duplicate text found.');
+    } else {
+      alert(`Removed ${paragraphsRemoved} duplicate paragraph${paragraphsRemoved !== 1 ? 's' : ''} across ${cardsChanged} card${cardsChanged !== 1 ? 's' : ''}.`);
+    }
+  }
 
   function handleExport() {
     const json = exportToJSON(state.cards, state.profiles, state.tags);
@@ -87,6 +96,7 @@ export default function Settings() {
           <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
           <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()}>Import JSON</button>
           <button className="btn btn-secondary btn-sm" onClick={handleBackup}>Backup Now</button>
+          <button className="btn btn-secondary btn-sm" onClick={handleCleanup}>Clean Duplicates</button>
           <button className="btn btn-sm" style={{ background: 'none', border: '1px solid #c25e5e55', color: 'var(--danger)' }} onClick={handleClearAll}>
             Clear All
           </button>

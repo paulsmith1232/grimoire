@@ -65,14 +65,21 @@ export default function BatchReview({ newCards, updateItems, onSave, onCancel, u
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
             {updateItems.map(({ incomingCard, existingCard }) => {
               const checked = selectedUpdates.has(incomingCard.id);
-              const newSections = (incomingCard.sections || []).filter((s) => s.content || s.keyValues);
+              // Only sections not already on the existing card actually get saved.
+              const existingNames = new Set((existingCard.sections || []).map((s) => s.name));
+              const newSections = (incomingCard.sections || [])
+                .filter((s) => s.content || s.keyValues)
+                .filter((s) => !existingNames.has(s.name));
+              const addsSummary = incomingCard.summary && !existingCard.summary;
               return (
                 <CardRow key={incomingCard.id} checked={checked} onClick={() => toggleUpdate(incomingCard.id)}>
                   <div style={nameStyle}>{existingCard.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, marginBottom: 4 }}>
                     {newSections.length > 0
                       ? `Adding: ${newSections.map((s) => s.name).join(', ')}`
-                      : 'No new sections — skip recommended'}
+                      : addsSummary
+                        ? 'Adding: summary only'
+                        : 'No new content — skip recommended'}
                   </div>
                   {incomingCard.summary && !existingCard.summary && (
                     <div style={summaryStyle}>+ summary: {incomingCard.summary}</div>
