@@ -31,7 +31,11 @@ export default function Library() {
   // Home/index cards — entry points pinned above the normal list, never duplicated below.
   const homeCardIds = new Set(profiles.map((p) => p.homeCardId).filter(Boolean));
   const homeCards = filtered.filter((c) => homeCardIds.has(c.id));
-  const listCards = filtered.filter((c) => !homeCardIds.has(c.id));
+  // Favorites — pinned beneath the home card, above the normal list. Home cards take
+  // precedence so a card is never shown in both pinned sections.
+  const favoriteCards = filtered.filter((c) => c.favorite && !homeCardIds.has(c.id));
+  const favoriteIds = new Set(favoriteCards.map((c) => c.id));
+  const listCards = filtered.filter((c) => !homeCardIds.has(c.id) && !favoriteIds.has(c.id));
 
   function getProfile(id) {
     return profiles.find((p) => p.id === id);
@@ -135,6 +139,40 @@ export default function Library() {
                   )}
                 </div>
                 {card.summary && <div className="desc">{card.summary}</div>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Favorites — pinned beneath the home card */}
+      {favoriteCards.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+          {favoriteCards.map((card) => {
+            const profile = getProfile(card.profileId);
+            const color = profile?.color || '#7d8590';
+            const meta = getPreviewMeta(card);
+            const desc = getPreviewText(card);
+            return (
+              <button
+                key={card.id}
+                className="card-preview"
+                style={{ borderLeft: `3px solid ${color}` }}
+                onClick={() => navigateToCard(card.id, true)}
+              >
+                <div className="card-preview-header">
+                  <h3>
+                    <span style={{ color: 'var(--accent)', marginRight: 6 }}>★</span>
+                    {card.name}
+                  </h3>
+                  {profile && (
+                    <span className="type-badge sm" style={{ background: color + '22', color, border: `1px solid ${color}55` }}>
+                      {profile.icon} {profile.name}
+                    </span>
+                  )}
+                </div>
+                {meta && <div className="meta">{meta}</div>}
+                {desc && <div className="desc">{desc}</div>}
               </button>
             );
           })}

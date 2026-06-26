@@ -58,6 +58,12 @@ export default function CardDetail() {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
             <button
               className="btn btn-secondary btn-sm"
+              title={card.favorite ? 'Remove from favorites' : 'Add to favorites'}
+              style={{ color: card.favorite ? 'var(--accent)' : 'var(--text-dim)' }}
+              onClick={() => saveCard({ ...card, favorite: !card.favorite })}
+            >{card.favorite ? '★' : '☆'}</button>
+            <button
+              className="btn btn-secondary btn-sm"
               title="Remove duplicated paragraphs"
               onClick={async () => {
                 const { card: cleaned, removed } = dedupeCard(card);
