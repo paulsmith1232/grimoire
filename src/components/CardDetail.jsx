@@ -53,17 +53,22 @@ export default function CardDetail() {
 
       <div className="detail-card" style={{ borderTop: `3px solid ${color}` }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
-          <h2>{card.name}</h2>
+        <h2 style={{ marginBottom: 10 }}>{card.name}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          {profile ? (
+            <span className="type-badge" style={{ background: color + '22', color, border: `1px solid ${color}55` }}>
+              {profile.icon} {profile.name}
+            </span>
+          ) : <span />}
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary btn-sm icon-btn"
               title={card.favorite ? 'Remove from favorites' : 'Add to favorites'}
               style={{ color: card.favorite ? 'var(--accent)' : 'var(--text-dim)' }}
               onClick={() => saveCard({ ...card, favorite: !card.favorite })}
             >{card.favorite ? '★' : '☆'}</button>
             <button
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary btn-sm icon-btn"
               title="Remove duplicated paragraphs"
               onClick={async () => {
                 const { card: cleaned, removed } = dedupeCard(card);
@@ -71,13 +76,12 @@ export default function CardDetail() {
                 await saveCard(cleaned);
                 alert(`Removed ${removed} duplicate paragraph${removed !== 1 ? 's' : ''}.`);
               }}
-            >⟲ Clean</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => dispatch({ type: 'EDIT_CARD', id: card.id })}>✎ Edit</button>
-            {profile && (
-              <span className="type-badge" style={{ background: color + '22', color, border: `1px solid ${color}55` }}>
-                {profile.icon} {profile.name}
-              </span>
-            )}
+            >⟲</button>
+            <button
+              className="btn btn-secondary btn-sm icon-btn"
+              title="Edit card"
+              onClick={() => dispatch({ type: 'EDIT_CARD', id: card.id })}
+            >✎</button>
           </div>
         </div>
 

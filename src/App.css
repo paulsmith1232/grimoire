@@ -33,6 +33,7 @@ input::placeholder, textarea::placeholder { color: var(--text-dim); }
 .btn-secondary { background: var(--surface); color: var(--text-mid); border: 1px solid var(--border); }
 .btn-danger { background: none; border: 1px solid #c25e5e55; color: var(--danger); }
 .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+.icon-btn { padding: 0; width: 36px; min-width: 36px; height: 36px; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
 .btn-block { width: 100%; }
 .pills { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
 .pills::-webkit-scrollbar { display: none; }
