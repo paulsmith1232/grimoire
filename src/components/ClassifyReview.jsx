@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context';
 import { classifyCards } from '../api';
 import { getOutgoingLinks } from '../linking';
@@ -7,46 +7,46 @@ import { getOutgoingLinks } from '../linking';
 // each card, using link context, and lets the user edit/skip before applying.
 export default function ClassifyReview({ onClose }) {
   const { state, saveCard, addTag } = useApp();
-  const [phase, setPhase] = useState('loading'); // loading | review | error | saving
+  const [phase, setPhase] = useState('select'); // select | loading | review | error | saving
+  const [profileId, setProfileId] = useState('all');
   const [error, setError] = useState('');
   const [rows, setRows] = useState([]); // { card, suggested, apply }
   const [usage, setUsage] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const nameById = {};
-        for (const c of state.cards) nameById[c.id] = c.name;
-        const items = state.cards.map((c) => ({
-          id: c.id,
-          name: c.name,
-          summary: c.summary || '',
-          links: getOutgoingLinks(c).map((id) => nameById[id]).filter(Boolean),
-        }));
-        const candidateTags = state.tags;
-        const { result, usage } = await classifyCards(items, candidateTags, state.apiKey);
-        if (cancelled) return;
-        const byId = {};
-        for (const r of result) byId[r.id] = r.tag;
-        const built = state.cards
-          .map((card) => {
-            const suggested = byId[card.id] || 'General';
-            const alreadyHas = (card.tags || []).includes(suggested);
-            return { card, suggested, apply: suggested !== 'General' && !alreadyHas };
-          })
-          .sort((a, b) => Number(b.apply) - Number(a.apply));
-        setRows(built);
-        setUsage(usage);
-        setPhase('review');
-      } catch (e) {
-        if (cancelled) return;
-        setError(e.message || 'Classification failed.');
-        setPhase('error');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  // Cards in scope for the chosen profile (computed up front for the count + the run)
+  const scopedCards = profileId === 'all'
+    ? state.cards
+    : state.cards.filter((c) => c.profileId === profileId);
+
+  async function runClassification() {
+    setPhase('loading');
+    try {
+      const nameById = {};
+      for (const c of state.cards) nameById[c.id] = c.name;
+      const items = scopedCards.map((c) => ({
+        id: c.id,
+        name: c.name,
+        summary: c.summary || '',
+        links: getOutgoingLinks(c).map((id) => nameById[id]).filter(Boolean),
+      }));
+      const { result, usage } = await classifyCards(items, state.tags, state.apiKey);
+      const byId = {};
+      for (const r of result) byId[r.id] = r.tag;
+      const built = scopedCards
+        .map((card) => {
+          const suggested = byId[card.id] || 'General';
+          const alreadyHas = (card.tags || []).includes(suggested);
+          return { card, suggested, apply: suggested !== 'General' && !alreadyHas };
+        })
+        .sort((a, b) => Number(b.apply) - Number(a.apply));
+      setRows(built);
+      setUsage(usage);
+      setPhase('review');
+    } catch (e) {
+      setError(e.message || 'Classification failed.');
+      setPhase('error');
+    }
+  }
 
   function setRow(id, patch) {
     setRows((prev) => prev.map((r) => (r.card.id === id ? { ...r, ...patch } : r)));
@@ -66,11 +66,40 @@ export default function ClassifyReview({ onClose }) {
     onClose();
   }
 
+  if (phase === 'select') {
+    return (
+      <div className="section fade-in">
+        <button className="back-btn" onClick={onClose}>← Cancel</button>
+        <h2 className="section-title">Classify Cards</h2>
+        <p className="help" style={{ marginTop: 0 }}>
+          Suggest a class/subject tag for each card using AI. Pick which profile to classify.
+        </p>
+        <div className="edit-field" style={{ marginTop: 8 }}>
+          <label>Profile</label>
+          <select value={profileId} onChange={(e) => setProfileId(e.target.value)}>
+            <option value="all">All profiles</option>
+            {state.profiles.map((p) => (
+              <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          className="btn btn-primary btn-block"
+          style={{ marginTop: 14, opacity: scopedCards.length === 0 ? 0.5 : 1 }}
+          disabled={scopedCards.length === 0}
+          onClick={runClassification}
+        >
+          Classify {scopedCards.length} Card{scopedCards.length !== 1 ? 's' : ''}
+        </button>
+      </div>
+    );
+  }
+
   if (phase === 'loading') {
     return (
       <div style={{ textAlign: 'center', padding: '40px 20px' }}>
         <div style={{ fontSize: 26, marginBottom: 10, animation: 'pulse 1.5s ease-in-out infinite' }}>🏷</div>
-        <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>Classifying {state.cards.length} cards…</div>
+        <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>Classifying {scopedCards.length} cards…</div>
       </div>
     );
   }
