@@ -3,14 +3,19 @@ import { useApp } from '../context';
 import { exportToJSON, importFromJSON, createBackup, DND_PROFILE } from '../db';
 import db from '../db';
 import ClassifyReview from './ClassifyReview';
+import AutoLinkReview from './AutoLinkReview';
 
 export default function Settings() {
   const { state, setApiKey, reloadAll, cleanupDuplicates } = useApp();
   const fileRef = useRef(null);
   const [classifying, setClassifying] = useState(false);
+  const [autoLinking, setAutoLinking] = useState(false);
 
   if (classifying) {
     return <ClassifyReview onClose={() => setClassifying(false)} />;
+  }
+  if (autoLinking) {
+    return <AutoLinkReview onClose={() => setAutoLinking(false)} />;
   }
 
   async function handleCleanup() {
@@ -108,6 +113,11 @@ export default function Settings() {
             disabled={!state.apiKey || state.cards.length === 0}
             onClick={() => setClassifying(true)}
           >Classify Cards</button>
+          <button
+            className="btn btn-secondary btn-sm"
+            disabled={state.cards.length === 0}
+            onClick={() => setAutoLinking(true)}
+          >Auto-Link</button>
           <button className="btn btn-sm" style={{ background: 'none', border: '1px solid #c25e5e55', color: 'var(--danger)' }} onClick={handleClearAll}>
             Clear All
           </button>
