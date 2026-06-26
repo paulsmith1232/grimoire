@@ -1,11 +1,17 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../context';
 import { exportToJSON, importFromJSON, createBackup, DND_PROFILE } from '../db';
 import db from '../db';
+import ClassifyReview from './ClassifyReview';
 
 export default function Settings() {
   const { state, setApiKey, reloadAll, cleanupDuplicates } = useApp();
   const fileRef = useRef(null);
+  const [classifying, setClassifying] = useState(false);
+
+  if (classifying) {
+    return <ClassifyReview onClose={() => setClassifying(false)} />;
+  }
 
   async function handleCleanup() {
     const { cardsChanged, paragraphsRemoved } = await cleanupDuplicates();
@@ -97,6 +103,11 @@ export default function Settings() {
           <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()}>Import JSON</button>
           <button className="btn btn-secondary btn-sm" onClick={handleBackup}>Backup Now</button>
           <button className="btn btn-secondary btn-sm" onClick={handleCleanup}>Clean Duplicates</button>
+          <button
+            className="btn btn-secondary btn-sm"
+            disabled={!state.apiKey || state.cards.length === 0}
+            onClick={() => setClassifying(true)}
+          >Classify Cards</button>
           <button className="btn btn-sm" style={{ background: 'none', border: '1px solid #c25e5e55', color: 'var(--danger)' }} onClick={handleClearAll}>
             Clear All
           </button>

@@ -152,6 +152,8 @@ Profile fields (use these as section names, in order): ${fieldLabels || 'Name, D
 
 ${additionalInstructions}
 
+${opts.contextLabel ? `Context: ALL of these images relate to "${opts.contextLabel}" (e.g. a class or subject). Use this as the governing context when the page itself is not explicit about which class/subject it belongs to, and when writing summaries.` : ''}
+
 Granularity rules (IMPORTANT — this is what makes the wiki useful):
 - Create a SEPARATE card for EVERY proper-named thing that could be referenced from elsewhere: each named spell, named ability, named feature, named item, named subclass/archetype, named creature, named location, etc.
 - Do NOT lump a whole class, chapter, or page into one giant card. If a page describes a class with five named features and a spell list, that is one overview card PLUS one card per named feature PLUS one card per named spell.
@@ -288,6 +290,54 @@ Rules:
   const sections = JSON.parse(text.replace(/```json|```/g, '').trim());
   if (!Array.isArray(sections)) throw new Error('Unexpected response format from refine');
   return { sections, usage: data.usage };
+}
+
+// ── Classify cards by class/subject for tag backfill ──
+// items: [{ id, name, summary, links: [name...] }]; candidateTags: string[]
+// Returns [{ id, tag }] where tag is one of candidateTags or "General" (class-agnostic).
+export async function classifyCards(items, candidateTags, apiKey) {
+  if (!apiKey) throw new Error('No API key configured');
+  if (items.length === 0) return [];
+
+  const tagList = candidateTags.length > 0 ? candidateTags.map((t) => `"${t}"`).join(', ') : '(none defined yet)';
+
+  const systemPrompt = `You assign a class/subject tag to reference cards. For each entry, pick the SINGLE tag from the candidate list that best identifies which class or subject it belongs to. If an entry is class-agnostic — a general rule, condition, or item that any class could use — assign "General" instead.
+
+Candidate tags: [${tagList}]
+- Only use a tag from the candidate list, or "General". Do not invent new tags.
+- Use each entry's linked entries as strong context: if an entry links to or is named after a class-specific thing, it likely shares that class.
+- When genuinely unsure, prefer "General" — do not guess a class.
+
+Return ONLY a JSON array: [{"id":"...","tag":"..."}] — one object per input entry, no markdown, no preamble.`;
+
+  const userPayload = JSON.stringify(items, null, 2);
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `Classify these entries:\n${userPayload}` }],
+    }),
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e?.error?.message || 'API error: ' + res.status);
+  }
+
+  const data = await res.json();
+  const text = (data.content || []).map((b) => b.text || '').join('');
+  const result = JSON.parse(text.replace(/```json|```/g, '').trim());
+  if (!Array.isArray(result)) throw new Error('Unexpected response format from classify');
+  return { result, usage: data.usage };
 }
 
 // ── Chat message send ──

@@ -7,7 +7,7 @@ import CardEditor from './CardEditor';
 import BatchReview from './BatchReview';
 
 export default function Scan() {
-  const { state, dispatch, addCard, saveCard, setScanProfileId, setScanQueue } = useApp();
+  const { state, dispatch, addCard, saveCard, setScanProfileId, setScanQueue, addTag } = useApp();
   const [status, setStatus] = useState('idle'); // idle | cropping | processing | preview | batch-review | saved | error
   const [error, setError] = useState('');
   const [preview, setPreview] = useState(null);
@@ -15,6 +15,7 @@ export default function Scan() {
   const [fullPageMode, setFullPageMode] = useState(false);
   const [scanInstructions, setScanInstructions] = useState('');
   const [showInstructions, setShowInstructions] = useState(false);
+  const [scanContext, setScanContext] = useState(''); // class/subject tag applied to all batch cards
   const [batchNew, setBatchNew] = useState([]);
   const [batchUpdates, setBatchUpdates] = useState([]);
   const [batchUsage, setBatchUsage] = useState(null);
@@ -73,11 +74,13 @@ export default function Scan() {
         fullPageWithRegions: fullPageMode && queue.length === 1,
         scanInstructions,
       });
+      const context = scanContext.trim();
+      if (context && !state.tags.includes(context)) await addTag(context);
       setPreview({
         ...result,
         id: genId(),
         profileId: state.scanProfileId,
-        tags: [],
+        tags: context ? [context] : [],
         createdAt: Date.now(),
         sections: result.sections || [],
       });
@@ -107,12 +110,18 @@ export default function Scan() {
       // Index cards from all profiles so new cards can link across profiles
       // (e.g. a character-profile card linking to a D&D 5e rulebook card).
       const existingCards = await buildCardIndex(state.profiles.map((p) => p.id));
-      const { cards, usage } = await parseBatchImages(queue, state.apiKey, profile, state.tags, existingCards, {});
+      const context = scanContext.trim();
+      const { cards, usage } = await parseBatchImages(queue, state.apiKey, profile, state.tags, existingCards, { contextLabel: context });
+      // Register the context tag globally so it appears in filters
+      if (context && !state.tags.includes(context)) {
+        await addTag(context);
+      }
       const stamped = cards.map((c) => ({
         ...c,
         id: genId(),
         profileId: state.scanProfileId,
-        tags: c.tags || [],
+        // Stamp the scan context tag on every card (reliable — not dependent on Claude echoing it)
+        tags: context ? [...new Set([...(c.tags || []), context])] : (c.tags || []),
         createdAt: Date.now(),
         sections: c.sections || [],
       }));
@@ -163,6 +172,7 @@ export default function Scan() {
     setBatchUpdates([]);
     setBatchUsage(null);
     setTokenWarning(null);
+    setScanContext('');
   }
 
   // Crop overlay
@@ -302,6 +312,32 @@ export default function Scan() {
           )}
 
           {queue.length > 0 && (
+            <div style={{ marginTop: 10, border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
+                What's this about? <span style={{ textTransform: 'none', fontWeight: 400 }}>(tags every card — e.g. the class)</span>
+              </label>
+              <input
+                type="text"
+                value={scanContext}
+                placeholder="e.g. Paladin"
+                style={{ width: '100%', fontSize: 16, boxSizing: 'border-box', marginTop: 0 }}
+                onChange={(e) => setScanContext(e.target.value)}
+              />
+              {state.tags.length > 0 && (
+                <div className="pills" style={{ marginTop: 8 }}>
+                  {state.tags.map((t) => (
+                    <button
+                      key={t}
+                      className={'pill' + (scanContext === t ? ' active' : '')}
+                      onClick={() => setScanContext(scanContext === t ? '' : t)}
+                    >{t}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {queue.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
               <button
                 className="btn"
@@ -393,9 +429,14 @@ export default function Scan() {
               const existingNames = new Set((existingCard.sections || []).map((s) => s.name));
               const toAdd = (incomingCard.sections || []).filter((s) => !existingNames.has(s.name));
               if (toAdd.length === 0 && existingCard.summary) continue;
+              const context = scanContext.trim();
+              const mergedTags = context
+                ? [...new Set([...(existingCard.tags || []), context])]
+                : existingCard.tags;
               const merged = {
                 ...existingCard,
                 sections: [...(existingCard.sections || []), ...toAdd],
+                tags: mergedTags,
               };
               if (incomingCard.summary && !existingCard.summary) merged.summary = incomingCard.summary;
               await saveCard(merged);
