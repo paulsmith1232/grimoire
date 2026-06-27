@@ -55,13 +55,28 @@ export default function AutoLinkReview({ onClose }) {
       if (!card) continue;
       const sections = (card.sections || []).map((sec) => {
         const forSection = props.filter((p) => p.sectionName === sec.name);
-        if (forSection.length === 0 || sec.type !== 'text' || !sec.content) return sec;
-        let content = sec.content;
-        for (const p of forSection) {
-          const r = insertFirstLink(content, p.targetId, p.targetName);
-          if (r.changed) content = r.content;
+        if (forSection.length === 0) return sec;
+
+        if (sec.type === 'text' && sec.content) {
+          let content = sec.content;
+          for (const p of forSection.filter((p) => p.kind === 'text')) {
+            const r = insertFirstLink(content, p.targetId, p.targetName);
+            if (r.changed) content = r.content;
+          }
+          return { ...sec, content };
         }
-        return { ...sec, content };
+
+        if (sec.type === 'key-value' && sec.keyValues) {
+          const keyValues = { ...sec.keyValues };
+          for (const p of forSection.filter((p) => p.kind === 'kv')) {
+            const cur = String(keyValues[p.kvKey] ?? '');
+            const r = insertFirstLink(cur, p.targetId, p.targetName);
+            if (r.changed) keyValues[p.kvKey] = r.content;
+          }
+          return { ...sec, keyValues };
+        }
+
+        return sec;
       });
       await saveCard({ ...card, sections });
     }

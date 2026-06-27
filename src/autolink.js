@@ -71,23 +71,36 @@ export function findAutoLinks(cards) {
   const proposals = [];
   for (const card of cards) {
     for (const sec of card.sections || []) {
-      if (sec.type !== 'text' || !sec.content) continue;
-      const alreadyLinked = new Set(parseLinks(sec.content).map((l) => l.cardId));
-      const usedInSection = new Set();
-      for (const t of targets) {
-        if (t.id === card.id) continue;            // no self-links
-        if (alreadyLinked.has(t.id)) continue;     // already linked here
-        if (usedInSection.has(t.id)) continue;
-        if (!hasPlainMention(sec.content, t.name)) continue;
-        proposals.push({
-          cardId: card.id,
-          cardName: card.name,
-          sectionName: sec.name,
-          targetId: t.id,
-          targetName: t.name,
-          snippet: makeSnippet(sec.content, t.name),
-        });
-        usedInSection.add(t.id);
+      // Text sections: scan the content string.
+      if (sec.type === 'text' && sec.content) {
+        const alreadyLinked = new Set(parseLinks(sec.content).map((l) => l.cardId));
+        const usedHere = new Set();
+        for (const t of targets) {
+          if (t.id === card.id || alreadyLinked.has(t.id) || usedHere.has(t.id)) continue;
+          if (!hasPlainMention(sec.content, t.name)) continue;
+          proposals.push({
+            kind: 'text', cardId: card.id, cardName: card.name, sectionName: sec.name,
+            targetId: t.id, targetName: t.name, snippet: makeSnippet(sec.content, t.name),
+          });
+          usedHere.add(t.id);
+        }
+      }
+      // Key-value sections: scan each value string (values render as links; keys do not).
+      if (sec.type === 'key-value' && sec.keyValues) {
+        for (const [k, v] of Object.entries(sec.keyValues)) {
+          const val = String(v);
+          const alreadyLinked = new Set(parseLinks(val).map((l) => l.cardId));
+          const usedHere = new Set();
+          for (const t of targets) {
+            if (t.id === card.id || alreadyLinked.has(t.id) || usedHere.has(t.id)) continue;
+            if (!hasPlainMention(val, t.name)) continue;
+            proposals.push({
+              kind: 'kv', cardId: card.id, cardName: card.name, sectionName: sec.name, kvKey: k,
+              targetId: t.id, targetName: t.name, snippet: `${k}: ${makeSnippet(val, t.name)}`,
+            });
+            usedHere.add(t.id);
+          }
+        }
       }
     }
   }
