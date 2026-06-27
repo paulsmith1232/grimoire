@@ -1,7 +1,7 @@
 // ── Auto-linking: find plain-text mentions of existing card names and turn
 // them into [[id|text]] links. Pure string matching, no API. ──
 
-import { segmentText, parseLinks } from './linking';
+import { segmentText, parseLinks, stripLinks } from './linking';
 
 const MIN_NAME_LEN = 4; // ignore very short names to avoid false matches
 
@@ -85,20 +85,34 @@ export function findAutoLinks(cards) {
           usedHere.add(t.id);
         }
       }
-      // Key-value sections: scan each value string (values render as links; keys do not).
+      // Key-value sections: scan both keys and values (e.g. spell lists store the
+      // spell name as the key). Keys and values both render as links.
       if (sec.type === 'key-value' && sec.keyValues) {
         for (const [k, v] of Object.entries(sec.keyValues)) {
-          const val = String(v);
-          const alreadyLinked = new Set(parseLinks(val).map((l) => l.cardId));
-          const usedHere = new Set();
+          // Key
+          const keyLinked = new Set(parseLinks(k).map((l) => l.cardId));
+          const usedInKey = new Set();
           for (const t of targets) {
-            if (t.id === card.id || alreadyLinked.has(t.id) || usedHere.has(t.id)) continue;
+            if (t.id === card.id || keyLinked.has(t.id) || usedInKey.has(t.id)) continue;
+            if (!hasPlainMention(k, t.name)) continue;
+            proposals.push({
+              kind: 'kvkey', cardId: card.id, cardName: card.name, sectionName: sec.name, kvKey: k,
+              targetId: t.id, targetName: t.name, snippet: stripLinks(k),
+            });
+            usedInKey.add(t.id);
+          }
+          // Value
+          const val = String(v);
+          const valLinked = new Set(parseLinks(val).map((l) => l.cardId));
+          const usedInVal = new Set();
+          for (const t of targets) {
+            if (t.id === card.id || valLinked.has(t.id) || usedInVal.has(t.id)) continue;
             if (!hasPlainMention(val, t.name)) continue;
             proposals.push({
               kind: 'kv', cardId: card.id, cardName: card.name, sectionName: sec.name, kvKey: k,
-              targetId: t.id, targetName: t.name, snippet: `${k}: ${makeSnippet(val, t.name)}`,
+              targetId: t.id, targetName: t.name, snippet: `${stripLinks(k)}: ${makeSnippet(val, t.name)}`,
             });
-            usedHere.add(t.id);
+            usedInVal.add(t.id);
           }
         }
       }

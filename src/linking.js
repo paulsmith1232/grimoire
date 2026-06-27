@@ -90,7 +90,9 @@ export function computeReverseLinks(targetCardId, allCards) {
     if (card.id === targetCardId) continue;
     for (const sec of card.sections || []) {
       const text = sec.content || '';
-      const kvText = sec.keyValues ? Object.values(sec.keyValues).join(' ') : '';
+      const kvText = sec.keyValues
+        ? Object.entries(sec.keyValues).map(([k, v]) => k + ' ' + v).join(' ')
+        : '';
       const combined = text + ' ' + kvText;
       const links = parseLinks(combined);
       if (links.some((l) => l.cardId === targetCardId)) {
@@ -108,7 +110,9 @@ export function getOutgoingLinks(card) {
   const ids = new Set();
   for (const sec of card.sections || []) {
     const text = sec.content || '';
-    const kvText = sec.keyValues ? Object.values(sec.keyValues).join(' ') : '';
+    const kvText = sec.keyValues
+      ? Object.entries(sec.keyValues).map(([k, v]) => k + ' ' + v).join(' ')
+      : '';
     for (const link of parseLinks(text + ' ' + kvText)) {
       ids.add(link.cardId);
     }

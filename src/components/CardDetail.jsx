@@ -229,7 +229,7 @@ function ExpandedSection({ sec }) {
         <div className="stat-grid" style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
           {Object.entries(sec.keyValues).map(([k, v]) => (
             <div key={k}>
-              <span className="stat-label">{k}</span><br />
+              <span className="stat-label"><LinkedText text={String(k)} /></span><br />
               <LinkedText text={String(v)} />
             </div>
           ))}
@@ -257,7 +257,7 @@ function CollapsibleSection({ sec }) {
           <div className="stat-grid">
             {Object.entries(sec.keyValues).map(([k, v]) => (
               <div key={k}>
-                <span className="stat-label">{k}</span><br />
+                <span className="stat-label"><LinkedText text={String(k)} /></span><br />
                 <LinkedText text={String(v)} />
               </div>
             ))}

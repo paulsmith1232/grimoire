@@ -67,11 +67,21 @@ export default function AutoLinkReview({ onClose }) {
         }
 
         if (sec.type === 'key-value' && sec.keyValues) {
-          const keyValues = { ...sec.keyValues };
-          for (const p of forSection.filter((p) => p.kind === 'kv')) {
-            const cur = String(keyValues[p.kvKey] ?? '');
-            const r = insertFirstLink(cur, p.targetId, p.targetName);
-            if (r.changed) keyValues[p.kvKey] = r.content;
+          // Rebuild entries in order, applying value edits (kind 'kv') and key
+          // renames (kind 'kvkey'). Match proposals against the ORIGINAL key.
+          const keyValues = {};
+          for (const [origKey, origVal] of Object.entries(sec.keyValues)) {
+            let newKey = origKey;
+            for (const p of forSection.filter((p) => p.kind === 'kvkey' && p.kvKey === origKey)) {
+              const r = insertFirstLink(newKey, p.targetId, p.targetName);
+              if (r.changed) newKey = r.content;
+            }
+            let newVal = String(origVal);
+            for (const p of forSection.filter((p) => p.kind === 'kv' && p.kvKey === origKey)) {
+              const r = insertFirstLink(newVal, p.targetId, p.targetName);
+              if (r.changed) newVal = r.content;
+            }
+            keyValues[newKey] = newVal;
           }
           return { ...sec, keyValues };
         }

@@ -26,6 +26,7 @@ const initialState = {
   searchQuery: '',
   scanProfileId: '',
   scanQueue: [],
+  libraryView: 1, // 1 | 2 | 3 | 'tree' — persisted across navigation and sessions
 };
 
 function reducer(state, action) {
@@ -60,6 +61,8 @@ function reducer(state, action) {
       return { ...state, scanProfileId: action.id };
     case 'SET_SCAN_QUEUE':
       return { ...state, scanQueue: action.queue };
+    case 'SET_LIBRARY_VIEW':
+      return { ...state, libraryView: action.view };
     case 'EDIT_PROFILE':
       return { ...state, editingProfileId: action.id };
     case 'STOP_EDITING_PROFILE':
@@ -82,12 +85,13 @@ export function AppProvider({ children }) {
         await migrateFromLocalStorage();
       }
 
-      const [cards, profiles, tags, apiKey, scanProfileId] = await Promise.all([
+      const [cards, profiles, tags, apiKey, scanProfileId, libraryView] = await Promise.all([
         getAllCards(),
         getAllProfiles(),
         getAllTags(),
         getSetting('apiKey'),
         getSetting('scanProfileId'),
+        getSetting('libraryView'),
       ]);
 
       dispatch({
@@ -98,6 +102,7 @@ export function AppProvider({ children }) {
           tags,
           apiKey: apiKey || '',
           scanProfileId: scanProfileId || profiles[0]?.id || '',
+          libraryView: libraryView || 1,
         },
       });
     }
@@ -196,6 +201,11 @@ export function AppProvider({ children }) {
     dispatch({ type: 'SET_SCAN_QUEUE', queue });
   }, []);
 
+  const setLibraryView = useCallback(async (view) => {
+    dispatch({ type: 'SET_LIBRARY_VIEW', view });
+    await setSetting('libraryView', view);
+  }, []);
+
   // ── QA state actions ──
   const getQAState = useCallback(async (checklistId) => {
     return dbGetQAState(checklistId);
@@ -273,6 +283,7 @@ export function AppProvider({ children }) {
     setApiKey,
     setScanProfileId,
     setScanQueue,
+    setLibraryView,
     cleanupDuplicates,
     reloadAll,
     navigateToCard,

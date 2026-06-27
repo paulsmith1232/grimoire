@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useApp } from '../context';
 import { stripLinks } from '../linking';
 import LibraryTree from './LibraryTree';
@@ -7,9 +7,9 @@ const VIEWS = [1, 2, 3, 'tree'];
 const VIEW_ICONS = { 1: '▤', 2: '▦', 3: '⊞', tree: '🌲' };
 
 export default function Library() {
-  const { state, dispatch, navigateToCard } = useApp();
-  const { cards, profiles, tags, filterProfile, filterTag, searchQuery } = state;
-  const [view, setView] = useState(1);
+  const { state, dispatch, navigateToCard, setLibraryView } = useApp();
+  const { cards, profiles, tags, filterProfile, filterTag, searchQuery, libraryView } = state;
+  const view = libraryView;
   const cols = view; // grid branches read cols (1/2/3); 'tree' handled separately
 
   const usedProfiles = [...new Set(cards.map((c) => c.profileId).filter(Boolean))];
@@ -47,7 +47,7 @@ export default function Library() {
   function getPreviewMeta(card) {
     const s = (card.sections || []).find((s) => s.type === 'key-value' && s.keyValues);
     if (!s) return '';
-    return Object.entries(s.keyValues).slice(0, 3).map(([k, v]) => `${k}: ${v}`).join(' · ');
+    return Object.entries(s.keyValues).slice(0, 3).map(([k, v]) => `${stripLinks(k)}: ${stripLinks(String(v))}`).join(' · ');
   }
 
   function getPreviewText(card) {
@@ -56,7 +56,7 @@ export default function Library() {
   }
 
   function cycleView() {
-    setView((v) => VIEWS[(VIEWS.indexOf(v) + 1) % VIEWS.length]);
+    setLibraryView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
   }
 
   return (
