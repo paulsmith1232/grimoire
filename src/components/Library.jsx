@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { useApp } from '../context';
 import { stripLinks } from '../linking';
+import LibraryTree from './LibraryTree';
 
-const COL_ICONS = { 1: '▤', 2: '▦', 3: '⊞' };
+const VIEWS = [1, 2, 3, 'tree'];
+const VIEW_ICONS = { 1: '▤', 2: '▦', 3: '⊞', tree: '🌲' };
 
 export default function Library() {
   const { state, dispatch, navigateToCard } = useApp();
   const { cards, profiles, tags, filterProfile, filterTag, searchQuery } = state;
-  const [cols, setCols] = useState(1);
+  const [view, setView] = useState(1);
+  const cols = view; // grid branches read cols (1/2/3); 'tree' handled separately
 
   const usedProfiles = [...new Set(cards.map((c) => c.profileId).filter(Boolean))];
 
@@ -53,7 +56,7 @@ export default function Library() {
   }
 
   function cycleView() {
-    setCols((c) => (c % 3) + 1);
+    setView((v) => VIEWS[(VIEWS.indexOf(v) + 1) % VIEWS.length]);
   }
 
   return (
@@ -69,9 +72,9 @@ export default function Library() {
         <button
           className="btn btn-secondary btn-sm"
           style={{ flexShrink: 0, fontSize: 16, padding: '6px 10px' }}
-          title={`Switch to ${cols === 3 ? '1' : cols + 1}-column view`}
+          title="Switch view (list / grid / tree)"
           onClick={cycleView}
-        >{COL_ICONS[cols]}</button>
+        >{VIEW_ICONS[view]}</button>
       </div>
 
       {/* Profile filter pills */}
@@ -114,6 +117,17 @@ export default function Library() {
         </div>
       )}
 
+      {view === 'tree' ? (
+        <LibraryTree
+          cards={cards.filter((c) =>
+            filterProfile === 'all' ? true
+            : filterProfile === '_none' ? !c.profileId
+            : c.profileId === filterProfile)}
+          homeCardIds={homeCardIds}
+          onOpen={(id) => navigateToCard(id, true)}
+        />
+      ) : (
+      <>
       {/* Home / index cards — pinned entry points */}
       {homeCards.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
@@ -270,6 +284,8 @@ export default function Library() {
             );
           })}
         </div>
+      )}
+      </>
       )}
     </div>
   );
