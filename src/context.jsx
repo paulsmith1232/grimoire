@@ -133,6 +133,14 @@ export function AppProvider({ children }) {
     return newCard;
   }, []);
 
+  // Bulk save (used by tree drag-and-drop reorder/reparent) — one reload at the end.
+  const saveCards = useCallback(async (cardsToSave) => {
+    for (const c of cardsToSave) await putCard(c);
+    const cards = await getAllCards();
+    dispatch({ type: 'SET_CARDS', cards });
+    saveCountRef.current += cardsToSave.length;
+  }, []);
+
   const removeCard = useCallback(async (id) => {
     await dbDeleteCard(id);
     const cards = await getAllCards();
@@ -273,6 +281,7 @@ export function AppProvider({ children }) {
     state,
     dispatch,
     saveCard,
+    saveCards,
     addCard,
     removeCard,
     saveProfile,
